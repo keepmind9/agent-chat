@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent Chat Dashboard</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen,Ubuntu,sans-serif;background:#1a1a2e;color:#e0e0e0;height:100vh;overflow:hidden}
+.app{display:flex;height:100vh}
+
+/* Sidebar */
+.sidebar{width:240px;min-width:240px;background:#16213e;border-right:1px solid #0f3460;display:flex;flex-direction:column}
+.sidebar-header{padding:16px 20px;font-size:14px;font-weight:600;color:#53a8b6;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #0f3460}
+.agent-list{flex:1;overflow-y:auto;padding:8px 0}
+.agent-item{display:flex;align-items:center;gap:10px;padding:8px 20px;cursor:default;transition:background .15s}
+.agent-item:hover{background:rgba(15,52,96,.4)}
+.status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.status-dot.online{background:#4ade80;box-shadow:0 0 4px #4ade80}
+.status-dot.offline{background:#6b7280}
+.agent-name{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.agent-groups{font-size:11px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px}
+
+/* Main */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.header{padding:16px 24px;font-size:20px;font-weight:700;color:#e0e0e0;border-bottom:1px solid #0f3460;background:#16213e}
+.filter-bar{display:flex;gap:12px;padding:12px 24px;background:#16213e;border-bottom:1px solid #0f3460;align-items:center}
+.filter-bar select{background:#1a1a2e;color:#e0e0e0;border:1px solid #0f3460;border-radius:6px;padding:6px 12px;font-size:13px;outline:none;cursor:pointer}
+.filter-bar select:focus{border-color:#53a8b6}
+.btn{background:#0f3460;color:#e0e0e0;border:1px solid #0f3460;border-radius:6px;padding:6px 16px;font-size:13px;cursor:pointer;transition:background .15s}
+.btn:hover{background:#1a4a8a}
+.ws-status{margin-left:auto;font-size:12px;display:flex;align-items:center;gap:6px}
+.ws-dot{width:6px;height:6px;border-radius:50%}
+.ws-dot.connected{background:#4ade80}
+.ws-dot.disconnected{background:#ef4444}
+
+/* Message feed */
+.feed{flex:1;overflow-y:auto;padding:16px 24px}
+.msg-card{background:#16213e;border:1px solid #0f3460;border-radius:8px;padding:12px 16px;margin-bottom:10px;transition:border-color .15s}
+.msg-card.direct{border-left:3px solid #53a8b6}
+.msg-card.group{border-left:3px solid #e94560}
+.msg-header{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;color:#9ca3af;flex-wrap:wrap}
+.msg-from{color:#53a8b6;font-weight:600}
+.msg-arrow{color:#6b7280}
+.msg-to{color:#a78bfa;font-weight:600}
+.msg-group-badge{background:#e9456033;color:#e94560;padding:1px 8px;border-radius:10px;font-weight:600}
+.msg-time{margin-left:auto;color:#6b7280;white-space:nowrap}
+.msg-content{font-size:14px;line-height:1.5;word-break:break-word;color:#d1d5db}
+.empty-state{text-align:center;padding:60px 20px;color:#6b7280;font-size:14px}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#0f3460;border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:#1a4a8a}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-header">Agents</div>
+    <div class="agent-list" id="agentList"></div>
+  </aside>
+  <div class="main">
+    <div class="header">Agent Chat</div>
+    <div class="filter-bar">
+      <select id="agentFilter"><option value="">All Agents</option></select>
+      <select id="groupFilter"><option value="">All Groups</option></select>
+      <button class="btn" id="refreshBtn">Refresh</button>
+      <div class="ws-status">
+        <span class="ws-dot" id="wsDot"></span>
+        <span id="wsLabel">Connecting...</span>
+      </div>
+    </div>
+    <div class="feed" id="messageFeed"></div>
+  </div>
+</div>
+<script>
+(function() {
+  'use strict';
+
+  var agentListEl = document.getElementById('agentList');
+  var messageFeedEl = document.getElementById('messageFeed');
+  var agentFilterEl = document.getElementById('agentFilter');
+  var groupFilterEl = document.getElementById('groupFilter');
+  var refreshBtn = document.getElementById('refreshBtn');
+  var wsDot = document.getElementById('wsDot');
+  var wsLabel = document.getElementById('wsLabel');
+
+  var cachedAgents = [];
+  var cachedGroups = [];
+  var ws = null;
+  var wsReconnectDelay = 1000;
+
+  // --- Fetch helpers ---
+
+  function fetchJSON(url) {
+    return fetch(url).then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    });
+  }
+
+  // --- Agents ---
+
+  function loadAgents() {
+    fetchJSON('/api/agents').then(function(agents) {
+      cachedAgents = agents || [];
+      renderAgents();
+      populateAgentFilter();
+    }).catch(function(err) {
+      console.error('Failed to load agents:', err);
+    });
+  }
+
+  function renderAgents() {
+    var html = '';
+    cachedAgents.forEach(function(a) {
+      var dotClass = a.status === 'online' ? 'online' : 'offline';
+      var groups = (a.groups || []).join(', ');
+      html += '<div class="agent-item">' +
+        '<span class="status-dot ' + dotClass + '"></span>' +
+        '<div><div class="agent-name">' + esc(a.name) + '</div>' +
+        (groups ? '<div class="agent-groups">' + esc(groups) + '</div>' : '') +
+        '</div></div>';
+    });
+    agentListEl.innerHTML = html || '<div class="empty-state">No agents registered</div>';
+  }
+
+  function populateAgentFilter() {
+    var val = agentFilterEl.value;
+    var html = '<option value="">All Agents</option>';
+    cachedAgents.forEach(function(a) {
+      html += '<option value="' + esc(a.name) + '">' + esc(a.name) + '</option>';
+    });
+    agentFilterEl.innerHTML = html;
+    agentFilterEl.value = val;
+  }
+
+  // --- Groups ---
+
+  function loadGroups() {
+    fetchJSON('/api/groups').then(function(groups) {
+      cachedGroups = groups || [];
+      populateGroupFilter();
+    }).catch(function(err) {
+      console.error('Failed to load groups:', err);
+    });
+  }
+
+  function populateGroupFilter() {
+    var val = groupFilterEl.value;
+    var html = '<option value="">All Groups</option>';
+    cachedGroups.forEach(function(g) {
+      html += '<option value="' + esc(g) + '">' + esc(g) + '</option>';
+    });
+    groupFilterEl.innerHTML = html;
+    groupFilterEl.value = val;
+  }
+
+  // --- Messages ---
+
+  function loadMessages() {
+    fetchJSON('/api/messages/recent').then(function(msgs) {
+      renderMessages(msgs || []);
+    }).catch(function(err) {
+      console.error('Failed to load messages:', err);
+    });
+  }
+
+  function renderMessages(msgs) {
+    var agentVal = agentFilterEl.value;
+    var groupVal = groupFilterEl.value;
+
+    var filtered = msgs.filter(function(m) {
+      if (agentVal && m.from_agent !== agentVal && m.to_agent !== agentVal) return false;
+      if (groupVal && m.group !== groupVal) return false;
+      return true;
+    });
+
+    if (filtered.length === 0) {
+      messageFeedEl.innerHTML = '<div class="empty-state">No messages found</div>';
+      return;
+    }
+
+    var html = '';
+    filtered.forEach(function(m) {
+      var isGroup = !!m.group;
+      var cardClass = isGroup ? 'group' : 'direct';
+      var time = formatTime(m.created_at);
+      var toPart = isGroup
+        ? '<span class="msg-group-badge">[' + esc(m.group) + ']</span>'
+        : '<span class="msg-to">' + esc(m.to_agent) + '</span>';
+
+      html += '<div class="msg-card ' + cardClass + '">' +
+        '<div class="msg-header">' +
+        '<span class="msg-from">' + esc(m.from_agent) + '</span>' +
+        '<span class="msg-arrow">&rarr;</span>' +
+        toPart +
+        '<span class="msg-time">' + esc(time) + '</span>' +
+        '</div>' +
+        '<div class="msg-content">' + esc(m.content) + '</div>' +
+        '</div>';
+    });
+    messageFeedEl.innerHTML = html;
+  }
+
+  // --- WebSocket ---
+
+  function connectWS() {
+    var proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    var url = proto + '//' + location.host + '/ws?agent=__web_dashboard';
+    ws = new WebSocket(url);
+
+    ws.onopen = function() {
+      wsDot.className = 'ws-dot connected';
+      wsLabel.textContent = 'Connected';
+      wsReconnectDelay = 1000;
+    };
+
+    ws.onmessage = function(evt) {
+      try {
+        var msg = JSON.parse(evt.data);
+        if (msg.type === 'new_message') {
+          loadMessages();
+          loadAgents();
+        }
+      } catch (e) {
+        // ignore non-JSON
+      }
+    };
+
+    ws.onclose = function() {
+      wsDot.className = 'ws-dot disconnected';
+      wsLabel.textContent = 'Disconnected';
+      setTimeout(function() {
+        wsReconnectDelay = Math.min(wsReconnectDelay * 2, 30000);
+        connectWS();
+      }, wsReconnectDelay);
+    };
+
+    ws.onerror = function() {
+      // onclose will fire after this
+    };
+  }
+
+  // --- Helpers ---
+
+  function esc(s) {
+    if (!s) return '';
+    var d = document.createElement('div');
+    d.appendChild(document.createTextNode(s));
+    return d.innerHTML;
+  }
+
+  function formatTime(ts) {
+    if (!ts) return '';
+    var d = new Date(ts);
+    if (isNaN(d.getTime())) return ts;
+    var hh = String(d.getHours()).padStart(2, '0');
+    var mm = String(d.getMinutes()).padStart(2, '0');
+    var ss = String(d.getSeconds()).padStart(2, '0');
+    var mon = String(d.getMonth() + 1).padStart(2, '0');
+    var day = String(d.getDate()).padStart(2, '0');
+    return mon + '-' + day + ' ' + hh + ':' + mm + ':' + ss;
+  }
+
+  // --- Events ---
+
+  refreshBtn.addEventListener('click', function() {
+    loadAgents();
+    loadGroups();
+    loadMessages();
+  });
+
+  agentFilterEl.addEventListener('change', function() {
+    loadMessages();
+  });
+
+  groupFilterEl.addEventListener('change', function() {
+    loadMessages();
+  });
+
+  // --- Init ---
+
+  loadAgents();
+  loadGroups();
+  loadMessages();
+  connectWS();
+
+  // Auto-refresh agent list every 10 seconds
+  setInterval(loadAgents, 10000);
+
+})();
+</script>
+</body>
+</html>
