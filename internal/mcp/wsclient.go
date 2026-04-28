@@ -8,16 +8,16 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/keepmind9/agent-chat/internal/injector"
+	"github.com/keepmind9/agent-chat/internal/notify"
 	"github.com/keepmind9/agent-chat/pkg/protocol"
 )
 
 // WSClient connects to the agent-chat server via WebSocket to receive
-// real-time push notifications and inject them into the agent's tmux pane.
+// real-time push notifications and deliver them via a Notifier.
 type WSClient struct {
 	serverURL string
 	agentName string
-	injector  *injector.Injector
+	notifier  notify.Notifier
 	conn      *websocket.Conn
 	mu        sync.Mutex
 	stopCh    chan struct{}
@@ -25,11 +25,11 @@ type WSClient struct {
 }
 
 // NewWSClient creates a new WebSocket client.
-func NewWSClient(serverURL, agentName string, inj *injector.Injector) *WSClient {
+func NewWSClient(serverURL, agentName string, n notify.Notifier) *WSClient {
 	return &WSClient{
 		serverURL: serverURL,
 		agentName: agentName,
-		injector:  inj,
+		notifier:  n,
 		stopCh:    make(chan struct{}),
 	}
 }
@@ -133,11 +133,11 @@ func (c *WSClient) readLoop() {
 	}
 }
 
-// handleMessage logs and injects a message into the tmux pane.
+// handleMessage logs and delivers a message notification.
 func (c *WSClient) handleMessage(msg *protocol.Message) {
 	log.Printf("[wsclient] received message from %s", msg.FromAgent)
-	if err := c.injector.InjectMessage(msg); err != nil {
-		log.Printf("[wsclient] inject error: %v", err)
+	if err := c.notifier.Notify(msg); err != nil {
+		log.Printf("[wsclient] notify error: %v", err)
 	}
 }
 

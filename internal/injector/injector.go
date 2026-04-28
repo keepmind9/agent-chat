@@ -9,8 +9,12 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/keepmind9/agent-chat/internal/notify"
 	"github.com/keepmind9/agent-chat/pkg/protocol"
 )
+
+// Compile-time check that Injector implements notify.Notifier.
+var _ notify.Notifier = (*Injector)(nil)
 
 // FormatDirectMessage formats a direct (1-to-1) message for tmux injection.
 // Instruction first, variable content last — so agents always see the action
@@ -118,9 +122,9 @@ func (inj *Injector) Inject(text string) error {
 	return exec.Command("tmux", "send-keys", "-t", inj.pane, "Enter").Run()
 }
 
-// InjectMessage formats msg according to its type (group or direct)
+// Notify formats msg according to its type (group or direct)
 // and injects the result into the tmux pane.
-func (inj *Injector) InjectMessage(msg *protocol.Message) error {
+func (inj *Injector) Notify(msg *protocol.Message) error {
 	var formatted string
 	if msg.Group != "" {
 		formatted = FormatGroupMessage(msg)

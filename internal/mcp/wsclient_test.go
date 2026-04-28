@@ -6,16 +6,15 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/keepmind9/agent-chat/internal/injector"
+	"github.com/keepmind9/agent-chat/internal/notify"
 )
 
 func TestNewWSClient(t *testing.T) {
-	inj := injector.New("")
-	client := NewWSClient("http://localhost:8080", "test-agent", inj)
+	client := NewWSClient("http://localhost:8080", "test-agent", notify.NopNotifier{})
 
 	assert.Equal(t, "http://localhost:8080", client.serverURL)
 	assert.Equal(t, "test-agent", client.agentName)
-	assert.NotNil(t, client.injector)
+	assert.NotNil(t, client.notifier)
 	assert.NotNil(t, client.stopCh)
 }
 
@@ -61,7 +60,7 @@ func TestWSURL(t *testing.T) {
 }
 
 func TestStop(t *testing.T) {
-	client := NewWSClient("http://localhost:8080", "test", injector.New(""))
+	client := NewWSClient("http://localhost:8080", "test", notify.NopNotifier{})
 	client.Stop()
 
 	// Calling Stop twice should not panic
@@ -69,7 +68,7 @@ func TestStop(t *testing.T) {
 }
 
 func TestSleepWithStop(t *testing.T) {
-	client := NewWSClient("http://localhost:8080", "test", injector.New(""))
+	client := NewWSClient("http://localhost:8080", "test", notify.NopNotifier{})
 	client.Stop()
 
 	// With stopCh closed, sleepWithStop should return true quickly
