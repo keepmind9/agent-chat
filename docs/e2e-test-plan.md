@@ -36,18 +36,14 @@ Codex TUI requires special tmux handling:
 
 ## Prerequisites
 
-- LLM gateway running on `127.0.0.1:3456`
-- agent-chat binaries built (`server` + `mcp`)
-- Three demo directories:
-  - `/data/app/workspace/me/demo` — Claude Code with `.mcp.json`
-  - `/data/app/workspace/me/demo2` — Claude Code with `.mcp.json`
-  - `/data/app/workspace/me/demo3` — Codex with `.codex/config.toml`
+- agent-chat binaries built (`make build`)
+- Three working directories for agents (e.g. `~/demo`, `~/demo2`, `~/demo3`)
 
 ## Execution Steps
 
 ### Phase 0 — Pre-configuration
 
-1. Update `settings.local.json` in Claude demo dirs — add MCP tool permissions to `permissions.allow`:
+1. Update `settings.local.json` in Claude Code demo dirs — add MCP tool permissions to `permissions.allow`:
    ```json
    "mcp__agent-chat__register",
    "mcp__agent-chat__send_message",
@@ -67,12 +63,12 @@ Codex TUI requires special tmux handling:
    command = "/path/to/agent-chat/mcp"
    [mcp_servers.agent-chat.env]
    AGENT_CHAT_SERVER = "http://localhost:8080"
-   AGENT_NAME = "agent-demo3"
+   AGENT_NAME = "agent-codex"
    AGENT_GROUPS = "dev-team"
    ```
-4. Trust demo3 project for Codex in `~/.codex/config.toml`:
+4. Trust the Codex project directory in `~/.codex/config.toml`:
    ```toml
-   [projects."/data/app/workspace/me/demo3"]
+   [projects."/path/to/demo3"]
    trust_level = "trusted"
    ```
 5. Clean up existing tmux sessions (`agent-demo`, `agent-demo2`, `agent-demo3`) and old SQLite database.
@@ -84,9 +80,9 @@ Codex TUI requires special tmux handling:
 
 ### Phase 2 — Launch Agents
 
-1. Create tmux session `agent-demo`, cd to `/data/app/workspace/me/demo`, start `claude`.
-2. Create tmux session `agent-demo2`, cd to `/data/app/workspace/me/demo2`, start `claude`.
-3. Create tmux session `agent-demo3`, cd to `/data/app/workspace/me/demo3`, start `codex`.
+1. Create tmux session `agent-demo`, cd to your first demo directory, start `claude`.
+2. Create tmux session `agent-demo2`, cd to your second demo directory, start `claude`.
+3. Create tmux session `agent-demo3`, cd to your Codex demo directory, start `codex`.
 4. Poll `curl /api/agents` until all three agents appear (auto-registered by MCP plugin).
 
 ### Phase 3 — Test Direct Messaging (Claude → Claude)

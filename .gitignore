@@ -3,3 +3,5 @@
 /mcp
 HANDOFF.md
 *.db-journal
+/docs
+!/docs/e2e-test-plan.md
