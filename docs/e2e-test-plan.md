@@ -36,7 +36,7 @@ Codex TUI requires special tmux handling:
 
 ## Prerequisites
 
-- agent-chat binaries built (`make build`)
+- agent-chat binary built (`make build`)
 - Three working directories for agents (e.g. `~/demo`, `~/demo2`, `~/demo3`)
 
 ## Execution Steps
@@ -60,7 +60,8 @@ Codex TUI requires special tmux handling:
 3. Configure Codex MCP in `~/.codex/config.toml` (or project-level `.codex/config.toml`):
    ```toml
    [mcp_servers.agent-chat]
-   command = "/path/to/agent-chat/mcp"
+   command = "/path/to/agent-chat"
+   args = ["mcp"]
    [mcp_servers.agent-chat.env]
    AGENT_CHAT_SERVER = "http://localhost:8080"
    AGENT_NAME = "agent-codex"
@@ -75,7 +76,7 @@ Codex TUI requires special tmux handling:
 
 ### Phase 1 — Start Server
 
-1. Launch `./server` in background.
+1. Launch `./agent-chat server` in background.
 2. `curl /api/agents` — confirm empty initial state.
 
 ### Phase 2 — Launch Agents

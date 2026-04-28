@@ -1,6 +1,7 @@
 *.db
 /server
 /mcp
+/agent-chat
 HANDOFF.md
 *.db-journal
 /docs

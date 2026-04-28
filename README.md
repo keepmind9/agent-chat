@@ -102,18 +102,17 @@ Each agent is identified by a unique name. The MCP plugin auto-derives it as `{a
 ### Build
 
 ```bash
-# Build both binaries
+# Build single binary
 make build
 
 # Or manually
-go build -o server ./cmd/server
-go build -o mcp ./cmd/mcp
+go build -o agent-chat .
 ```
 
 ### 1. Start the Central Server
 
 ```bash
-./server --port 8080 --db agent-chat.db
+./agent-chat server --port 8080 --db agent-chat.db
 ```
 
 Options:
@@ -134,8 +133,8 @@ Edit your project's MCP settings (`.mcp.json` in project root or global `~/.clau
   "mcpServers": {
     "agent-chat": {
       "type": "stdio",
-      "command": "/path/to/agent-chat/mcp",
-      "args": [],
+      "command": "/path/to/agent-chat",
+      "args": ["mcp"],
       "env": {
         "AGENT_CHAT_SERVER": "http://localhost:8080",
         "AGENT_NAME": "backend-dev",
@@ -167,7 +166,8 @@ Create `.codex/config.toml` in your project root:
 ```toml
 # .codex/config.toml (project-level)
 [mcp_servers.agent-chat]
-command = "/path/to/agent-chat/mcp"
+command = "/path/to/agent-chat"
+args = ["mcp"]
 [mcp_servers.agent-chat.env]
 AGENT_CHAT_SERVER = "http://localhost:8080"
 AGENT_NAME = "frontend-dev"
@@ -178,7 +178,7 @@ Or global config at `~/.codex/config.toml` with the same format.
 
 ### 4. For Other MCP-Compatible Agents
 
-The MCP plugin works with any MCP-compatible agent. Point the agent's MCP config to the `mcp` binary with the same environment variables.
+The MCP plugin works with any MCP-compatible agent. Point the agent's MCP config to the `agent-chat` binary with `args: ["mcp"]` and the same environment variables.
 
 ## MCP Tools Reference
 
@@ -252,9 +252,11 @@ Push message format:
 
 ```
 agent-chat/
+├── main.go                      # Single binary entry point
 ├── cmd/
-│   ├── server/main.go          # Server binary entry point
-│   └── mcp/main.go             # MCP plugin binary entry point
+│   ├── root.go                  # Cobra root command
+│   ├── server.go                # "server" subcommand
+│   └── mcp.go                   # "mcp" subcommand
 ├── internal/
 │   ├── store/store.go          # SQLite persistence layer
 │   ├── server/
