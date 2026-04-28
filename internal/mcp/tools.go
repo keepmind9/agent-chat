@@ -27,7 +27,7 @@ func NewAPIClient(baseURL, agentName string) *APIClient {
 }
 
 // DoRequest sends an HTTP request to the server and returns the parsed response body.
-func (c *APIClient) DoRequest(method, path string, body interface{}) (map[string]interface{}, error) {
+func (c *APIClient) DoRequest(method, path string, body interface{}) (interface{}, error) {
 	var reader io.Reader
 	if body != nil {
 		data, err := json.Marshal(body)
@@ -60,7 +60,7 @@ func (c *APIClient) DoRequest(method, path string, body interface{}) (map[string
 		return nil, fmt.Errorf("server error %d: %s", resp.StatusCode, string(respData))
 	}
 
-	var result map[string]interface{}
+	var result interface{}
 	if err := json.Unmarshal(respData, &result); err != nil {
 		return nil, fmt.Errorf("parse response: %w", err)
 	}
@@ -105,7 +105,7 @@ func BuildRegisterTool() mcptool.Tool {
 // BuildSendMessageTool builds the MCP tool definition for sending direct messages.
 func BuildSendMessageTool() mcptool.Tool {
 	return mcptool.NewTool("send_message",
-		mcptool.WithDescription("Send a direct message to another agent. Use this to reply after receiving a message."),
+		mcptool.WithDescription("Send a direct message to another agent. Include reply_to with the original message ID when replying to prevent notification loops."),
 		mcptool.WithString("to",
 			mcptool.Required(),
 			mcptool.Description("The name of the target agent"),
@@ -113,6 +113,9 @@ func BuildSendMessageTool() mcptool.Tool {
 		mcptool.WithString("content",
 			mcptool.Required(),
 			mcptool.Description("The message content to send"),
+		),
+		mcptool.WithString("reply_to",
+			mcptool.Description("The message ID being replied to. Include when replying to prevent notification loops."),
 		),
 	)
 }
@@ -207,9 +210,10 @@ func MakeSendMessageHandler(client *APIClient) func(ctx context.Context, req mcp
 		}
 
 		body := map[string]interface{}{
-			"from":    client.agentName,
-			"to":      to,
-			"content": content,
+			"from":        client.agentName,
+			"to":          to,
+			"content":     content,
+			"in_reply_to": req.GetString("reply_to", ""),
 		}
 		result, err := client.DoRequest(http.MethodPost, "/api/send", body)
 		if err != nil {
@@ -250,7 +254,7 @@ func MakeSendGroupMessageHandler(client *APIClient) func(ctx context.Context, re
 func MakeCheckMessagesHandler(client *APIClient) func(ctx context.Context, req mcptool.CallToolRequest) (*mcptool.CallToolResult, error) {
 	return func(ctx context.Context, req mcptool.CallToolRequest) (*mcptool.CallToolResult, error) {
 		limit := req.GetInt("limit", 20)
-		path := fmt.Sprintf("/api/messages/%s?limit=%d", client.agentName, limit)
+		path := fmt.Sprintf("/api/messages?agent=%s&limit=%d", client.agentName, limit)
 
 		result, err := client.DoRequest(http.MethodGet, path, nil)
 		if err != nil {
@@ -273,7 +277,7 @@ func MakeReadMessagesHandler(client *APIClient) func(ctx context.Context, req mc
 			"agent_name":  client.agentName,
 			"message_ids": messageIDs,
 		}
-		result, err := client.DoRequest(http.MethodPost, "/api/read", body)
+		result, err := client.DoRequest(http.MethodPost, "/api/messages/read", body)
 		if err != nil {
 			return mcptool.NewToolResultError(fmt.Sprintf("mark read failed: %v", err)), nil
 		}

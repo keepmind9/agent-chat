@@ -63,7 +63,7 @@ func (h *Handler) HandleSend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	msgID, err := h.store.SaveMessage(req.From, req.To, req.Group, req.Content)
+	msgID, err := h.store.SaveMessage(req.From, req.To, req.Group, req.Content, req.InReplyTo)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

@@ -47,7 +47,7 @@ func TestSaveAndGetDirectMessage(t *testing.T) {
 	require.NoError(t, s.RegisterAgent("agent-a", nil))
 	require.NoError(t, s.RegisterAgent("agent-b", nil))
 
-	msgID, err := s.SaveMessage("agent-a", "agent-b", "", "hello b")
+	msgID, err := s.SaveMessage("agent-a", "agent-b", "", "hello b", "")
 	require.NoError(t, err)
 	assert.NotEmpty(t, msgID)
 
@@ -72,7 +72,7 @@ func TestSaveAndGetGroupMessage(t *testing.T) {
 	require.NoError(t, s.RegisterAgent("member2", []string{"team"}))
 	require.NoError(t, s.RegisterAgent("outsider", []string{"other"}))
 
-	msgID, err := s.SaveMessage("sender", "", "team", "hello team")
+	msgID, err := s.SaveMessage("sender", "", "team", "hello team", "")
 	require.NoError(t, err)
 	assert.NotEmpty(t, msgID)
 
@@ -104,7 +104,7 @@ func TestMarkRead(t *testing.T) {
 	require.NoError(t, s.RegisterAgent("agent-a", nil))
 	require.NoError(t, s.RegisterAgent("agent-b", nil))
 
-	msgID, err := s.SaveMessage("agent-a", "agent-b", "", "hello")
+	msgID, err := s.SaveMessage("agent-a", "agent-b", "", "hello", "")
 	require.NoError(t, err)
 
 	unread, err := s.GetUnreadMessages("agent-b", 10)
@@ -185,7 +185,7 @@ func TestGetRecentMessages(t *testing.T) {
 
 	// Save 5 messages
 	for i := 0; i < 5; i++ {
-		_, err := s.SaveMessage("agent-a", "agent-b", "", "msg")
+		_, err := s.SaveMessage("agent-a", "agent-b", "", "msg", "")
 		require.NoError(t, err)
 	}
 

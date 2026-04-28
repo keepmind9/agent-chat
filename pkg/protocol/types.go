@@ -6,12 +6,13 @@ import "time"
 
 // Message represents a chat message exchanged between agents or within a group.
 type Message struct {
-	ID         string    `json:"id"`
-	FromAgent  string    `json:"from_agent"`
-	ToAgent    string    `json:"to_agent"`
-	Group      string    `json:"group"`
-	Content    string    `json:"content"`
-	CreatedAt  time.Time `json:"created_at"`
+	ID        string    `json:"id"`
+	FromAgent string    `json:"from_agent"`
+	ToAgent   string    `json:"to_agent"`
+	Group     string    `json:"group"`
+	Content   string    `json:"content"`
+	InReplyTo string    `json:"in_reply_to,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 // Agent represents a registered agent in the system.
@@ -37,10 +38,11 @@ type WSPush struct {
 
 // SendRequest is the payload for sending a new message.
 type SendRequest struct {
-	From    string `json:"from"`
-	To      string `json:"to"`
-	Group   string `json:"group"`
-	Content string `json:"content"`
+	From      string `json:"from"`
+	To        string `json:"to"`
+	Group     string `json:"group"`
+	Content   string `json:"content"`
+	InReplyTo string `json:"in_reply_to,omitempty"`
 }
 
 // RegisterRequest is the payload for registering a new agent.

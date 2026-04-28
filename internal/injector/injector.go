@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
+	"time"
 
 	"github.com/keepmind9/agent-chat/pkg/protocol"
 )
@@ -13,7 +15,14 @@ import (
 // FormatDirectMessage formats a direct (1-to-1) message for tmux injection.
 // Instruction first, variable content last — so agents always see the action
 // even if the message body is long.
+// For replies (InReplyTo set), adds a no-auto-reply directive to prevent loops.
 func FormatDirectMessage(msg *protocol.Message) string {
+	if msg.InReplyTo != "" {
+		return fmt.Sprintf(
+			`[agent-chat] REPLY received from %s: "%s" (reply to %s). Do NOT auto-reply — wait for human user to explicitly ask you to respond.`,
+			msg.FromAgent, msg.Content, msg.InReplyTo,
+		)
+	}
 	return fmt.Sprintf(
 		`[agent-chat] Call check_messages for details, then reply with send_message. New message from %s: "%s"`,
 		msg.FromAgent, msg.Content,
@@ -28,9 +37,50 @@ func FormatGroupMessage(msg *protocol.Message) string {
 	)
 }
 
-// GetTmuxPane returns the value of the TMUX_PANE environment variable.
+// GetTmuxPane returns the tmux pane ID for the current process.
+// Checks TMUX_PANE env first, then falls back to the parent process's
+// environment (needed for AI CLIs like Codex that don't forward TMUX_PANE
+// to MCP child processes).
 func GetTmuxPane() string {
-	return os.Getenv("TMUX_PANE")
+	if pane := os.Getenv("TMUX_PANE"); pane != "" {
+		return pane
+	}
+	return parentTmuxPane()
+}
+
+// parentTmuxPane reads TMUX_PANE from the parent process's environment.
+// Works on Linux via /proc/<ppid>/environ; returns "" on other platforms.
+func parentTmuxPane() string {
+	ppid := os.Getppid()
+	path := "/proc/" + strconv.Itoa(ppid) + "/environ"
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	for _, entry := range splitNull(data) {
+		if len(entry) >= len("TMUX_PANE=") && string(entry[:len("TMUX_PANE=")]) == "TMUX_PANE=" {
+			return string(entry[len("TMUX_PANE="):])
+		}
+	}
+	return ""
+}
+
+func splitNull(data []byte) [][]byte {
+	var entries [][]byte
+	for len(data) > 0 {
+		i := 0
+		for i < len(data) && data[i] != 0 {
+			i++
+		}
+		if i > 0 {
+			entries = append(entries, data[:i])
+		}
+		if i < len(data) {
+			i++
+		}
+		data = data[i:]
+	}
+	return entries
 }
 
 // Injector sends formatted messages into a tmux pane via send-keys.
@@ -54,13 +104,18 @@ func (inj *Injector) IsEnabled() bool {
 }
 
 // Inject sends arbitrary text into the configured tmux pane.
+// Text and Enter are sent as separate send-keys calls with a short delay
+// to ensure compatibility with different AI CLI TUIs (Claude Code, Codex, etc.).
 // Returns nil immediately when the injector is disabled.
 func (inj *Injector) Inject(text string) error {
 	if !inj.enabled {
 		return nil
 	}
-	cmd := exec.Command("tmux", "send-keys", "-t", inj.pane, text, "Enter")
-	return cmd.Run()
+	if err := exec.Command("tmux", "send-keys", "-t", inj.pane, text).Run(); err != nil {
+		return err
+	}
+	time.Sleep(100 * time.Millisecond)
+	return exec.Command("tmux", "send-keys", "-t", inj.pane, "Enter").Run()
 }
 
 // InjectMessage formats msg according to its type (group or direct)

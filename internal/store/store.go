@@ -51,6 +51,7 @@ func migrate(db *sql.DB) error {
 		to_agent    TEXT NOT NULL DEFAULT '',
 		grp         TEXT NOT NULL DEFAULT '',
 		content     TEXT NOT NULL DEFAULT '',
+		in_reply_to TEXT NOT NULL DEFAULT '',
 		created_at  DATETIME NOT NULL DEFAULT (datetime('now'))
 	);
 	CREATE TABLE IF NOT EXISTS message_reads (
@@ -139,11 +140,11 @@ func (s *Store) ListAgents() ([]*protocol.Agent, error) {
 }
 
 // SaveMessage persists a new message and returns its generated ID.
-func (s *Store) SaveMessage(from, to, group, content string) (string, error) {
+func (s *Store) SaveMessage(from, to, group, content, inReplyTo string) (string, error) {
 	id := fmt.Sprintf("msg-%d", time.Now().UnixNano())
 	_, err := s.db.Exec(
-		"INSERT INTO messages (id, from_agent, to_agent, grp, content, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-		id, from, to, group, content, time.Now().UTC(),
+		"INSERT INTO messages (id, from_agent, to_agent, grp, content, in_reply_to, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		id, from, to, group, content, inReplyTo, time.Now().UTC(),
 	)
 	if err != nil {
 		return "", fmt.Errorf("insert message: %w", err)
@@ -154,11 +155,11 @@ func (s *Store) SaveMessage(from, to, group, content string) (string, error) {
 // GetMessage retrieves a single message by ID.
 func (s *Store) GetMessage(id string) (*protocol.Message, error) {
 	row := s.db.QueryRow(
-		"SELECT id, from_agent, to_agent, grp, content, created_at FROM messages WHERE id = ?",
+		"SELECT id, from_agent, to_agent, grp, content, in_reply_to, created_at FROM messages WHERE id = ?",
 		id,
 	)
 	var m protocol.Message
-	err := row.Scan(&m.ID, &m.FromAgent, &m.ToAgent, &m.Group, &m.Content, &m.CreatedAt)
+	err := row.Scan(&m.ID, &m.FromAgent, &m.ToAgent, &m.Group, &m.Content, &m.InReplyTo, &m.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("get message: %w", err)
 	}
@@ -172,7 +173,7 @@ func (s *Store) GetMessage(id string) (*protocol.Message, error) {
 // Excludes the agent's own messages and messages already marked as read.
 func (s *Store) GetUnreadMessages(agent string, limit int) ([]*protocol.Message, error) {
 	rows, err := s.db.Query(`
-		SELECT m.id, m.from_agent, m.to_agent, m.grp, m.content, m.created_at
+		SELECT m.id, m.from_agent, m.to_agent, m.grp, m.content, m.in_reply_to, m.created_at
 		FROM messages m
 		WHERE m.from_agent != ?
 		  AND (
@@ -263,7 +264,7 @@ func (s *Store) ListGroups() ([]string, error) {
 // GetRecentMessages returns the most recent messages ordered by created_at DESC.
 func (s *Store) GetRecentMessages(limit int) ([]*protocol.Message, error) {
 	rows, err := s.db.Query(
-		"SELECT id, from_agent, to_agent, grp, content, created_at FROM messages ORDER BY created_at DESC LIMIT ?",
+		"SELECT id, from_agent, to_agent, grp, content, in_reply_to, created_at FROM messages ORDER BY created_at DESC LIMIT ?",
 		limit,
 	)
 	if err != nil {
@@ -279,7 +280,7 @@ func scanMessages(rows *sql.Rows) ([]*protocol.Message, error) {
 	var msgs []*protocol.Message
 	for rows.Next() {
 		var m protocol.Message
-		if err := rows.Scan(&m.ID, &m.FromAgent, &m.ToAgent, &m.Group, &m.Content, &m.CreatedAt); err != nil {
+		if err := rows.Scan(&m.ID, &m.FromAgent, &m.ToAgent, &m.Group, &m.Content, &m.InReplyTo, &m.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scan message: %w", err)
 		}
 		msgs = append(msgs, &m)

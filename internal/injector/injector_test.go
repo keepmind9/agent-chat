@@ -16,6 +16,18 @@ func TestFormatDirectMessage(t *testing.T) {
 	assert.Equal(t, expected, FormatDirectMessage(msg))
 }
 
+func TestFormatDirectMessageReply(t *testing.T) {
+	msg := &protocol.Message{
+		FromAgent: "agent-alice",
+		Content:   "Yes, I'm here!",
+		InReplyTo: "msg-123",
+	}
+	result := FormatDirectMessage(msg)
+	assert.Contains(t, result, "REPLY received")
+	assert.Contains(t, result, "Do NOT auto-reply")
+	assert.Contains(t, result, "msg-123")
+}
+
 func TestFormatGroupMessage(t *testing.T) {
 	msg := &protocol.Message{
 		FromAgent: "agent-bob",
