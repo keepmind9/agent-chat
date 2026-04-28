@@ -19,7 +19,7 @@ import (
 func FormatDirectMessage(msg *protocol.Message) string {
 	if msg.InReplyTo != "" {
 		return fmt.Sprintf(
-			`[agent-chat] REPLY received from %s: "%s" (reply to %s). Do NOT auto-reply — wait for human user to explicitly ask you to respond.`,
+			`[agent-chat] REPLY received. Do NOT auto-reply — wait for human user to explicitly ask you to respond. From %s: "%s" (reply to %s)`,
 			msg.FromAgent, msg.Content, msg.InReplyTo,
 		)
 	}
