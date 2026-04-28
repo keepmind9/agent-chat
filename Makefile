@@ -1,7 +1,8 @@
 .PHONY: build test fmt clean
 
 build:
-	go build ./cmd/server && go build ./cmd/mcp
+	go build -o server ./cmd/server
+	go build -o mcp ./cmd/mcp
 
 test:
 	go test ./... -v

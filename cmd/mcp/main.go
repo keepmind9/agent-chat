@@ -32,7 +32,7 @@ func main() {
 		if at := os.Getenv("AGENT_TYPE"); at != "" {
 			agentType = at
 		}
-		agentName = agentType + "@" + dirName
+		agentName = agentType + "-" + dirName
 	}
 
 	groups := os.Getenv("AGENT_GROUPS")
