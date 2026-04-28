@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -11,13 +12,14 @@ import (
 
 // Handler provides HTTP endpoints for the agent-chat system.
 type Handler struct {
-	store *store.Store
-	hub   *Hub
+	store  *store.Store
+	hub    *Hub
+	logger *slog.Logger
 }
 
-// NewHandler creates a new Handler with the given store and hub.
-func NewHandler(s *store.Store, h *Hub) *Handler {
-	return &Handler{store: s, hub: h}
+// NewHandler creates a new Handler with the given store, hub, and logger.
+func NewHandler(s *store.Store, h *Hub, logger *slog.Logger) *Handler {
+	return &Handler{store: s, hub: h, logger: logger.With("component", "server")}
 }
 
 // HandleRegister registers a new agent and updates hub group membership.

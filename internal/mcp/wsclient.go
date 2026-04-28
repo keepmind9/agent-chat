@@ -2,7 +2,7 @@ package mcp
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
@@ -18,6 +18,7 @@ type WSClient struct {
 	serverURL string
 	agentName string
 	notifier  notify.Notifier
+	logger    *slog.Logger
 	conn      *websocket.Conn
 	mu        sync.Mutex
 	stopCh    chan struct{}
@@ -25,11 +26,12 @@ type WSClient struct {
 }
 
 // NewWSClient creates a new WebSocket client.
-func NewWSClient(serverURL, agentName string, n notify.Notifier) *WSClient {
+func NewWSClient(serverURL, agentName string, n notify.Notifier, logger *slog.Logger) *WSClient {
 	return &WSClient{
 		serverURL: serverURL,
 		agentName: agentName,
 		notifier:  n,
+		logger:    logger.With("component", "wsclient"),
 		stopCh:    make(chan struct{}),
 	}
 }
@@ -37,7 +39,7 @@ func NewWSClient(serverURL, agentName string, n notify.Notifier) *WSClient {
 // Connect establishes a WebSocket connection to the server.
 func (c *WSClient) Connect() error {
 	url := c.wsURL()
-	log.Printf("[wsclient] connecting to %s", url)
+	c.logger.Info("connecting", "url", c.wsURL())
 
 	conn, _, err := websocket.DefaultDialer.Dial(url, nil)
 	if err != nil {
@@ -48,7 +50,7 @@ func (c *WSClient) Connect() error {
 	c.conn = conn
 	c.mu.Unlock()
 
-	log.Printf("[wsclient] connected to %s", url)
+	c.logger.Info("connected", "url", c.wsURL())
 	return nil
 }
 
@@ -63,7 +65,7 @@ func (c *WSClient) Run() {
 		}
 
 		if err := c.Connect(); err != nil {
-			log.Printf("[wsclient] connect error: %v, retrying in 2s", err)
+			c.logger.Warn("connect error, retrying", "error", err, "retry", "2s")
 			if c.sleepWithStop(2 * time.Second) {
 				return
 			}
@@ -73,7 +75,7 @@ func (c *WSClient) Run() {
 		c.readLoop()
 
 		// Connection lost, wait before retry
-		log.Printf("[wsclient] connection lost, retrying in 2s")
+		c.logger.Warn("connection lost, retrying", "retry", "2s")
 		if c.sleepWithStop(2 * time.Second) {
 			return
 		}
@@ -107,25 +109,25 @@ func (c *WSClient) readLoop() {
 
 		_, msgBytes, err := conn.ReadMessage()
 		if err != nil {
-			log.Printf("[wsclient] read error: %v", err)
+			c.logger.Warn("read error", "error", err)
 			return
 		}
 
 		var push protocol.WSPush
 		if err := json.Unmarshal(msgBytes, &push); err != nil {
-			log.Printf("[wsclient] unmarshal error: %v", err)
+			c.logger.Warn("unmarshal error", "error", err)
 			continue
 		}
 
 		if push.Type == "new_message" {
 			dataBytes, err := json.Marshal(push.Data)
 			if err != nil {
-				log.Printf("[wsclient] marshal message data: %v", err)
+				c.logger.Warn("marshal message data", "error", err)
 				continue
 			}
 			var msg protocol.Message
 			if err := json.Unmarshal(dataBytes, &msg); err != nil {
-				log.Printf("[wsclient] unmarshal message: %v", err)
+				c.logger.Warn("unmarshal message", "error", err)
 				continue
 			}
 			c.handleMessage(&msg)
@@ -135,9 +137,9 @@ func (c *WSClient) readLoop() {
 
 // handleMessage logs and delivers a message notification.
 func (c *WSClient) handleMessage(msg *protocol.Message) {
-	log.Printf("[wsclient] received message from %s", msg.FromAgent)
+	c.logger.Info("received message", "from", msg.FromAgent)
 	if err := c.notifier.Notify(msg); err != nil {
-		log.Printf("[wsclient] notify error: %v", err)
+		c.logger.Error("notify error", "error", err)
 	}
 }
 

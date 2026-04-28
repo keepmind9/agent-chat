@@ -3,7 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -39,6 +39,8 @@ var mcpCmd = &cobra.Command{
 
 		groups := os.Getenv("AGENT_GROUPS")
 
+		logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
+
 		pane := injector.GetTmuxPane()
 		inj := injector.New(pane)
 
@@ -69,11 +71,11 @@ var mcpCmd = &cobra.Command{
 				"groups": groupList,
 			})
 			if err != nil {
-				log.Printf("auto register: %v", err)
+				logger.Warn("auto register failed", "error", err)
 			}
 		}()
 
-		wsClient := mcpmod.NewWSClient(serverURL, agentName, inj)
+		wsClient := mcpmod.NewWSClient(serverURL, agentName, inj, logger)
 		go wsClient.Run()
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -83,7 +85,7 @@ var mcpCmd = &cobra.Command{
 			sigCh := make(chan os.Signal, 1)
 			signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 			<-sigCh
-			log.Println("[mcp] shutting down...")
+			logger.Info("shutting down")
 			wsClient.Stop()
 			cancel()
 		}()

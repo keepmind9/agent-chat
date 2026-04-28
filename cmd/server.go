@@ -1,8 +1,11 @@
 package cmd
 
 import (
-	"log"
+	"fmt"
+	"log/slog"
 	"net/http"
+	"os"
+	"path/filepath"
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
@@ -20,6 +23,12 @@ var serverCmd = &cobra.Command{
 	Use:   "server",
 	Short: "Start the agent-chat central server",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+		if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
+			return fmt.Errorf("create db directory: %w", err)
+		}
+
 		s, err := store.Open(dbPath)
 		if err != nil {
 			return err
@@ -29,7 +38,7 @@ var serverCmd = &cobra.Command{
 		hub := server.NewHub()
 		go hub.Run()
 
-		h := server.NewHandler(s, hub)
+		h := server.NewHandler(s, hub, logger)
 
 		r := gin.Default()
 
@@ -47,7 +56,7 @@ var serverCmd = &cobra.Command{
 		r.StaticFS("/web", http.Dir("./web"))
 		r.GET("/", func(c *gin.Context) { c.Redirect(http.StatusFound, "/web/") })
 
-		log.Printf("agent-chat server starting on :%s", serverPort)
+		logger.Info("agent-chat server starting", "port", serverPort)
 		return r.Run(":" + serverPort)
 	},
 }
@@ -55,5 +64,8 @@ var serverCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(serverCmd)
 	serverCmd.Flags().StringVar(&serverPort, "port", "8080", "server port")
-	serverCmd.Flags().StringVar(&dbPath, "db", "agent-chat.db", "SQLite database path")
+
+	homeDir, _ := os.UserHomeDir()
+	defaultDBPath := filepath.Join(homeDir, ".agent-chat", "agent-chat.db")
+	serverCmd.Flags().StringVar(&dbPath, "db", defaultDBPath, "SQLite database path")
 }

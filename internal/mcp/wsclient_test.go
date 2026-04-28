@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"log/slog"
 	"testing"
 	"time"
 
@@ -10,7 +11,7 @@ import (
 )
 
 func TestNewWSClient(t *testing.T) {
-	client := NewWSClient("http://localhost:8080", "test-agent", notify.NopNotifier{})
+	client := NewWSClient("http://localhost:8080", "test-agent", notify.NopNotifier{}, slog.Default())
 
 	assert.Equal(t, "http://localhost:8080", client.serverURL)
 	assert.Equal(t, "test-agent", client.agentName)
@@ -53,14 +54,14 @@ func TestWSURL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client := NewWSClient(tt.serverURL, tt.agentName, nil)
+			client := NewWSClient(tt.serverURL, tt.agentName, nil, slog.Default())
 			assert.Equal(t, tt.expected, client.wsURL())
 		})
 	}
 }
 
 func TestStop(t *testing.T) {
-	client := NewWSClient("http://localhost:8080", "test", notify.NopNotifier{})
+	client := NewWSClient("http://localhost:8080", "test", notify.NopNotifier{}, slog.Default())
 	client.Stop()
 
 	// Calling Stop twice should not panic
@@ -68,7 +69,7 @@ func TestStop(t *testing.T) {
 }
 
 func TestSleepWithStop(t *testing.T) {
-	client := NewWSClient("http://localhost:8080", "test", notify.NopNotifier{})
+	client := NewWSClient("http://localhost:8080", "test", notify.NopNotifier{}, slog.Default())
 	client.Stop()
 
 	// With stopCh closed, sleepWithStop should return true quickly

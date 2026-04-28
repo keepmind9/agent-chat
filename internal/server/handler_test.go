@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -23,7 +24,7 @@ func setupTestHandler(t *testing.T) *Handler {
 	go h.Run()
 	t.Cleanup(func() { h.Stop() })
 
-	return NewHandler(s, h)
+	return NewHandler(s, h, slog.Default())
 }
 
 func TestHandleRegister(t *testing.T) {
