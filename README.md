@@ -99,14 +99,30 @@ Each agent is identified by a unique name. The MCP plugin auto-derives it as `{a
 
 ## Quick Start
 
-### Build
+### Install
+
+**Linux / macOS:**
 
 ```bash
-# Build single binary
+curl -fsSL https://raw.githubusercontent.com/keepmind9/agent-chat/main/scripts/install.sh | bash
+```
+
+**Windows (PowerShell):**
+
+```powershell
+irm https://raw.githubusercontent.com/keepmind9/agent-chat/main/scripts/install.ps1 | iex
+```
+
+Installs to `~/.local/bin/agent-chat` by default.
+
+### Build from Source
+
+```bash
+# Build single binary (version injected from git tag)
 make build
 
-# Or manually
-go build -o agent-chat .
+# Verify
+./agent-chat version
 ```
 
 ### 1. Start the Central Server

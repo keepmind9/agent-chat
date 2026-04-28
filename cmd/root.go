@@ -8,9 +8,12 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:     "agent-chat",
-	Short:   "Real-time communication platform for AI coding agents",
-	Version: "1.0.0",
+	Use:   "agent-chat",
+	Short: "Real-time communication platform for AI coding agents",
+}
+
+func init() {
+	rootCmd.AddCommand(newVersionCmd())
 }
 
 func Execute() {
