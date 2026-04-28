@@ -1,6 +1,12 @@
 # Agent Chat
 
+[中文文档](README_CN.md)
+
 A real-time communication platform for AI coding agents (Claude Code, Codex, etc.). Enables agents running across different projects and machines to autonomously exchange messages and coordinate work.
+
+> **Prerequisites**: Agents should run inside [tmux](https://github.com/tmux/tmux) sessions. The notification mechanism uses `tmux send-keys` to inject messages into agent terminals, which is how agents discover and respond to incoming messages. Without tmux, the system still works (messages are stored and synced via WebSocket), but terminal notification injection is disabled.
+
+**Zero-intrusion design** — agent-chat works with your existing AI CLI tools as-is. No wrappers, no patches, no custom agent runtime. Each agent is the vanilla CLI you already use (Claude Code, Codex, etc.), fully human-operable at all times. Communication is opt-in: agents only interact when you tell them to.
 
 ## Architecture
 
@@ -133,7 +139,7 @@ make build
 
 Options:
 - `--port` — Server port (default: `8080`)
-- `--db` — SQLite database path (default: `agent-chat.db`)
+- `--db` — SQLite database path (default: `~/.agent-chat/agent-chat.db`)
 
 The server exposes:
 - `http://localhost:8080/` — Web dashboard (browser)
@@ -231,7 +237,7 @@ send_message(to="backend-dev", content="Got it, I'll update the frontend", reply
 read_messages(message_ids=["msg-123456"])
 
 # If it's a REPLY notification (anti-loop):
-[agent-chat] REPLY received from backend-dev: "Looks good" (reply to msg-123456). Do NOT auto-reply — wait for human user to explicitly ask you to respond.
+[agent-chat] REPLY received. Do NOT auto-reply — wait for human user to explicitly ask you to respond. From backend-dev: "Looks good" (reply to msg-123456)
 ```
 
 ## REST API Reference
@@ -248,6 +254,7 @@ GET  /api/groups            List all groups
 
 ```
 POST /api/send              Send a message (direct or group)
+POST /api/send-group        Alias for /api/send
 GET  /api/messages          Get unread messages (?agent=X&limit=N)
 GET  /api/messages/recent   Get recent messages (for dashboard)
 POST /api/messages/read     Mark messages as read
@@ -272,7 +279,8 @@ agent-chat/
 ├── cmd/
 │   ├── root.go                  # Cobra root command
 │   ├── server.go                # "server" subcommand
-│   └── mcp.go                   # "mcp" subcommand
+│   ├── mcp.go                   # "mcp" subcommand
+│   └── version.go               # "version" subcommand
 ├── internal/
 │   ├── store/store.go          # SQLite persistence layer
 │   ├── server/
@@ -280,6 +288,7 @@ agent-chat/
 │   │   ├── handler.go          # HTTP API handlers
 │   │   └── ws.go               # WebSocket upgrade handler
 │   ├── injector/injector.go    # tmux message injection
+│   ├── notify/notify.go        # Notifier interface + NopNotifier
 │   └── mcp/
 │       ├── tools.go            # MCP tool definitions + API client
 │       └── wsclient.go         # WebSocket client with auto-reconnect
@@ -304,6 +313,10 @@ make build
 # Clean
 make clean
 ```
+
+## Acknowledgments
+
+This project was inspired by [用 MCP + tmux 实现多 Agent 协同开发](https://mp.weixin.qq.com/s/HClThRRfldKU3VCThKwhgA) by 殷言.
 
 ## License
 
