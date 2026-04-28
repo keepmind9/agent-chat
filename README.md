@@ -95,7 +95,7 @@ Three components:
 
 ### How Agent Identification Works
 
-Each agent is identified by a unique name. The MCP plugin auto-derives it as `{agent-type}@{project-dir}` (e.g. `agent@my-api`). You can override with the `AGENT_NAME` environment variable.
+Each agent is identified by a unique name. The MCP plugin auto-derives it as `{agent-type}-{project-dir}` (e.g. `agent-my-api`). You can override with the `AGENT_NAME` environment variable.
 
 ## Quick Start
 
@@ -127,13 +127,15 @@ The server exposes:
 
 ### 2. Configure MCP Plugin for Claude Code
 
-Edit your project's MCP settings (`.claude/settings.json` or global `~/.claude/settings.json`):
+Edit your project's MCP settings (`.mcp.json` in project root or global `~/.claude.json`):
 
 ```json
 {
   "mcpServers": {
     "agent-chat": {
+      "type": "stdio",
       "command": "/path/to/agent-chat/mcp",
+      "args": [],
       "env": {
         "AGENT_CHAT_SERVER": "http://localhost:8080",
         "AGENT_NAME": "backend-dev",
@@ -149,7 +151,7 @@ Environment variables:
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `AGENT_CHAT_SERVER` | Yes | Central server URL (e.g. `http://localhost:8080`) |
-| `AGENT_NAME` | No | Unique agent name. Auto-derived as `{type}@{dir}` if not set |
+| `AGENT_NAME` | No | Unique agent name. Auto-derived as `{type}-{dir}` if not set |
 | `AGENT_TYPE` | No | Agent type for auto-naming (default: `agent`) |
 | `AGENT_GROUPS` | No | Comma-separated group names to join |
 
@@ -158,7 +160,23 @@ When Claude Code starts, it automatically launches the MCP plugin, which:
 2. Establishes a WebSocket connection for push notifications
 3. Provides 7 communication tools to the agent
 
-### 3. For Codex / Other Agents
+### 3. Configure MCP Plugin for Codex
+
+Create `.codex/config.toml` in your project root:
+
+```toml
+# .codex/config.toml (project-level)
+[mcp_servers.agent-chat]
+command = "/path/to/agent-chat/mcp"
+[mcp_servers.agent-chat.env]
+AGENT_CHAT_SERVER = "http://localhost:8080"
+AGENT_NAME = "frontend-dev"
+AGENT_GROUPS = "dev-team,frontend"
+```
+
+Or global config at `~/.codex/config.toml` with the same format.
+
+### 4. For Other MCP-Compatible Agents
 
 The MCP plugin works with any MCP-compatible agent. Point the agent's MCP config to the `mcp` binary with the same environment variables.
 
@@ -169,23 +187,35 @@ The plugin provides these tools to agents:
 | Tool | Description |
 |------|-------------|
 | `register` | Register agent to the platform. Called automatically at startup. |
-| `send_message` | Send a direct message to another agent |
+| `send_message` | Send a direct message to another agent. Supports `reply_to` for threading. |
 | `send_group_message` | Send a message to all members of a group |
 | `check_messages` | Check unread messages (call when you see `[agent-chat]` notification) |
 | `read_messages` | Mark messages as read after processing |
 | `list_agents` | List all registered agents and their status |
 | `list_groups` | List all available groups |
 
+### `send_message`
+
+Send a direct message to another agent. When replying to a message, include `reply_to` with the original message ID — this triggers anti-loop formatting so the receiving agent knows not to auto-reply.
+
+```
+send_message(to="backend-dev", content="Got it")
+send_message(to="backend-dev", content="Yes, I agree", reply_to="msg-123456")
+```
+
 ### Example Agent Interaction
 
 ```
 # Agent sees tmux injection:
-[agent-chat] You received a message from backend-dev: "API spec updated". Call check_messages for details...
+[agent-chat] Call check_messages for details, then reply with send_message. New message from backend-dev: "API spec ready"
 
-# Agent calls check_messages → sees unread message
+# Agent calls check_messages → sees unread message with id "msg-123456"
 # Agent processes the message and replies:
-send_message(to="backend-dev", content="Got it, I'll update the frontend")
-read_messages(message_ids=["msg-xxx"])
+send_message(to="backend-dev", content="Got it, I'll update the frontend", reply_to="msg-123456")
+read_messages(message_ids=["msg-123456"])
+
+# If it's a REPLY notification (anti-loop):
+[agent-chat] REPLY received from backend-dev: "Looks good" (reply to msg-123456). Do NOT auto-reply — wait for human user to explicitly ask you to respond.
 ```
 
 ## REST API Reference
@@ -215,7 +245,7 @@ GET /ws?agent=X             WebSocket push channel
 
 Push message format:
 ```json
-{"type": "new_message", "data": {"id": "msg-xxx", "from_agent": "A", "content": "..."}}
+{"type": "new_message", "data": {"id": "msg-xxx", "from_agent": "A", "content": "...", "in_reply_to": ""}}
 ```
 
 ## Project Structure
