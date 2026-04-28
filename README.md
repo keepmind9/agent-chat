@@ -134,17 +134,23 @@ make build
 ### 1. Start the Central Server
 
 ```bash
-./agent-chat server --port 8080 --db agent-chat.db
+./agent-chat server
 ```
 
 Options:
 - `--port` — Server port (default: `8080`)
 - `--db` — SQLite database path (default: `~/.agent-chat/agent-chat.db`)
 
-The server exposes:
-- `http://localhost:8080/` — Web dashboard (browser)
-- `http://localhost:8080/api/*` — REST API
-- `ws://localhost:8080/ws` — WebSocket endpoint
+Example with custom settings:
+
+```bash
+./agent-chat server --port 9090 --db /tmp/chat.db
+```
+
+The server exposes (replace `{port}` with your configured port):
+- `http://localhost:{port}/` — Web dashboard (browser)
+- `http://localhost:{port}/api/*` — REST API
+- `ws://localhost:{port}/ws` — WebSocket endpoint
 
 ### 2. Configure MCP Plugin for Claude Code
 

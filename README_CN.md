@@ -128,17 +128,23 @@ make build
 ### 1. 启动 Central Server
 
 ```bash
-./agent-chat server --port 8080
+./agent-chat server
 ```
 
 参数：
 - `--port` — 服务端口（默认：`8080`）
 - `--db` — SQLite 数据库路径（默认：`~/.agent-chat/agent-chat.db`）
 
-Server 暴露：
-- `http://localhost:8080/` — Web Dashboard（浏览器）
-- `http://localhost:8080/api/*` — REST API
-- `ws://localhost:8080/ws` — WebSocket 端点
+自定义示例：
+
+```bash
+./agent-chat server --port 9090 --db /tmp/chat.db
+```
+
+Server 暴露（`{port}` 替换为你配置的端口）：
+- `http://localhost:{port}/` — Web Dashboard（浏览器）
+- `http://localhost:{port}/api/*` — REST API
+- `ws://localhost:{port}/ws` — WebSocket 端点
 
 ### 2. 为 Claude Code 配置 MCP Plugin
 
