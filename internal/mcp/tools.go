@@ -172,6 +172,18 @@ func BuildListGroupsTool() mcptool.Tool {
 	)
 }
 
+// BuildUpdateStatusTool builds the MCP tool definition for updating agent work status.
+func BuildUpdateStatusTool() mcptool.Tool {
+	return mcptool.NewTool("update_status",
+		mcptool.WithDescription("Update your work status so other agents know if you are busy. Set to 'working' when you start a task and 'idle' when done."),
+		mcptool.WithString("status",
+			mcptool.Required(),
+			mcptool.Description("Your current status: 'idle' or 'working'"),
+			mcptool.Enum("idle", "working"),
+		),
+	)
+}
+
 // --- Tool Handlers ---
 
 // MakeRegisterHandler creates a handler for the register tool.
@@ -304,6 +316,27 @@ func MakeListGroupsHandler(client *APIClient) func(ctx context.Context, req mcpt
 		result, err := client.DoRequest(http.MethodGet, "/api/groups", nil)
 		if err != nil {
 			return mcptool.NewToolResultError(fmt.Sprintf("list groups failed: %v", err)), nil
+		}
+		data, _ := json.Marshal(result)
+		return mcptool.NewToolResultText(string(data)), nil
+	}
+}
+
+// MakeUpdateStatusHandler creates a handler for the update_status tool.
+func MakeUpdateStatusHandler(client *APIClient) func(ctx context.Context, req mcptool.CallToolRequest) (*mcptool.CallToolResult, error) {
+	return func(ctx context.Context, req mcptool.CallToolRequest) (*mcptool.CallToolResult, error) {
+		status, err := req.RequireString("status")
+		if err != nil {
+			return mcptool.NewToolResultError(err.Error()), nil
+		}
+
+		body := map[string]interface{}{
+			"agent_name": client.agentName,
+			"status":     status,
+		}
+		result, err := client.DoRequest(http.MethodPost, "/api/agents/status", body)
+		if err != nil {
+			return mcptool.NewToolResultError(fmt.Sprintf("update status failed: %v", err)), nil
 		}
 		data, _ := json.Marshal(result)
 		return mcptool.NewToolResultText(string(data)), nil

@@ -177,6 +177,33 @@ func (h *Handler) HandleRecentMessages(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, msgs)
 }
 
+// HandleUpdateStatus updates an agent's work status (idle/working).
+func (h *Handler) HandleUpdateStatus(w http.ResponseWriter, r *http.Request) {
+	var req protocol.UpdateStatusRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.AgentName == "" {
+		http.Error(w, "agent_name is required", http.StatusBadRequest)
+		return
+	}
+	if req.Status != "idle" && req.Status != "working" {
+		http.Error(w, "status must be 'idle' or 'working'", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.store.SetAgentStatus(req.AgentName, req.Status); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	h.hub.PushStatusChange(req.AgentName, req.Status)
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
 // writeJSON encodes v as JSON and writes it to w with the given status code.
 func writeJSON(w http.ResponseWriter, status int, v interface{}) {
 	w.Header().Set("Content-Type", "application/json")

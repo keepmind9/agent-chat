@@ -159,3 +159,37 @@ func TestHandleListGroups(t *testing.T) {
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&groups))
 	require.ElementsMatch(t, []string{"grp-1", "grp-2"}, groups)
 }
+
+func TestHandleUpdateStatus(t *testing.T) {
+	h := setupTestHandler(t)
+
+	// Register an agent.
+	body := `{"name":"agent-a","groups":[]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/register", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	h.HandleRegister(w, req)
+	require.Equal(t, http.StatusOK, w.Result().StatusCode)
+
+	tests := []struct {
+		name       string
+		body       string
+		wantStatus int
+	}{
+		{"set working", `{"agent_name":"agent-a","status":"working"}`, http.StatusOK},
+		{"set idle", `{"agent_name":"agent-a","status":"idle"}`, http.StatusOK},
+		{"invalid status", `{"agent_name":"agent-a","status":"busy"}`, http.StatusBadRequest},
+		{"missing name", `{"agent_name":"","status":"idle"}`, http.StatusBadRequest},
+		{"unknown agent", `{"agent_name":"unknown","status":"idle"}`, http.StatusInternalServerError},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/api/agents/status", bytes.NewBufferString(tt.body))
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+			h.HandleUpdateStatus(w, req)
+			require.Equal(t, tt.wantStatus, w.Result().StatusCode)
+		})
+	}
+}

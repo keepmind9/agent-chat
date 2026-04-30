@@ -72,7 +72,7 @@ func (s *Store) RegisterAgent(name string, groups []string) error {
 		return fmt.Errorf("marshal groups: %w", err)
 	}
 	_, err = s.db.Exec(
-		"INSERT INTO agents (name, groups, status, registered_at) VALUES (?, ?, 'online', ?)",
+		"INSERT INTO agents (name, groups, status, registered_at) VALUES (?, ?, 'idle', ?)",
 		name, string(groupsJSON), time.Now().UTC(),
 	)
 	if err != nil {

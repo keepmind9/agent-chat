@@ -13,6 +13,18 @@ import (
 	"github.com/keepmind9/agent-chat/pkg/protocol"
 )
 
+const summaryLen = 200
+
+// truncateMsg returns a summary of msg.Content up to summaryLen runes,
+// with "..." appended when truncated.
+func truncateMsg(content string) string {
+	runes := []rune(content)
+	if len(runes) <= summaryLen {
+		return content
+	}
+	return string(runes[:summaryLen]) + "..."
+}
+
 // Compile-time check that Injector implements notify.Notifier.
 var _ notify.Notifier = (*Injector)(nil)
 
@@ -21,23 +33,25 @@ var _ notify.Notifier = (*Injector)(nil)
 // even if the message body is long.
 // For replies (InReplyTo set), adds a no-auto-reply directive to prevent loops.
 func FormatDirectMessage(msg *protocol.Message) string {
+	summary := truncateMsg(msg.Content)
 	if msg.InReplyTo != "" {
 		return fmt.Sprintf(
-			`[agent-chat] REPLY received. Do NOT auto-reply — wait for human user to explicitly ask you to respond. From %s: "%s" (reply to %s)`,
-			msg.FromAgent, msg.Content, msg.InReplyTo,
+			`[agent-chat] Wait for your instruction before responding. | from=%s reply_to=%s content="%s"`,
+			msg.FromAgent, msg.InReplyTo, summary,
 		)
 	}
 	return fmt.Sprintf(
-		`[agent-chat] Call check_messages for details, then reply with send_message. New message from %s: "%s"`,
-		msg.FromAgent, msg.Content,
+		`[agent-chat] Call check_messages for details, then reply with send_message. | from=%s content="%s"`,
+		msg.FromAgent, summary,
 	)
 }
 
 // FormatGroupMessage formats a group message for tmux injection.
 func FormatGroupMessage(msg *protocol.Message) string {
+	summary := truncateMsg(msg.Content)
 	return fmt.Sprintf(
-		`[agent-chat] Call check_messages for details, then reply with send_group_message or send_message. Group %s message from %s: "%s"`,
-		msg.Group, msg.FromAgent, msg.Content,
+		`[agent-chat] Call check_messages for details, then reply with send_group_message or send_message. | group=%s from=%s content="%s"`,
+		msg.Group, msg.FromAgent, summary,
 	)
 }
 

@@ -56,3 +56,9 @@ type ReadRequest struct {
 	AgentName  string   `json:"agent_name"`
 	MessageIDs []string `json:"message_ids"`
 }
+
+// UpdateStatusRequest is the payload for updating an agent's work status.
+type UpdateStatusRequest struct {
+	AgentName string `json:"agent_name"`
+	Status    string `json:"status"` // "idle" or "working"
+}

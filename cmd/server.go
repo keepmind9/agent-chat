@@ -54,6 +54,7 @@ var serverCmd = &cobra.Command{
 		r.POST("/api/messages/read", gin.WrapF(h.HandleMarkRead))
 		r.GET("/api/agents", gin.WrapF(h.HandleListAgents))
 		r.GET("/api/groups", gin.WrapF(h.HandleListGroups))
+		r.POST("/api/agents/status", gin.WrapF(h.HandleUpdateStatus))
 
 		r.GET("/ws", gin.WrapF(h.HandleWebSocket))
 

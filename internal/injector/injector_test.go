@@ -12,8 +12,10 @@ func TestFormatDirectMessage(t *testing.T) {
 		FromAgent: "agent-alice",
 		Content:   "Hello, are you available?",
 	}
-	expected := `[agent-chat] Call check_messages for details, then reply with send_message. New message from agent-alice: "Hello, are you available?"`
-	assert.Equal(t, expected, FormatDirectMessage(msg))
+	result := FormatDirectMessage(msg)
+	assert.Contains(t, result, "[agent-chat] Call check_messages for details, then reply with send_message.")
+	assert.Contains(t, result, `from=agent-alice`)
+	assert.Contains(t, result, `content="Hello, are you available?"`)
 }
 
 func TestFormatDirectMessageReply(t *testing.T) {
@@ -23,9 +25,9 @@ func TestFormatDirectMessageReply(t *testing.T) {
 		InReplyTo: "msg-123",
 	}
 	result := FormatDirectMessage(msg)
-	assert.Contains(t, result, "REPLY received")
-	assert.Contains(t, result, "Do NOT auto-reply")
-	assert.Contains(t, result, "msg-123")
+	assert.Contains(t, result, "Wait for your instruction before responding.")
+	assert.Contains(t, result, `from=agent-alice`)
+	assert.Contains(t, result, `reply_to=msg-123`)
 }
 
 func TestFormatGroupMessage(t *testing.T) {
@@ -34,8 +36,10 @@ func TestFormatGroupMessage(t *testing.T) {
 		Group:     "dev-team",
 		Content:   "Deploying v2 now",
 	}
-	expected := `[agent-chat] Call check_messages for details, then reply with send_group_message or send_message. Group dev-team message from agent-bob: "Deploying v2 now"`
-	assert.Equal(t, expected, FormatGroupMessage(msg))
+	result := FormatGroupMessage(msg)
+	assert.Contains(t, result, "[agent-chat] Call check_messages for details, then reply with send_group_message or send_message.")
+	assert.Contains(t, result, `group=dev-team`)
+	assert.Contains(t, result, `from=agent-bob`)
 }
 
 func TestGetTmuxPane(t *testing.T) {

@@ -100,3 +100,24 @@ func (h *Hub) PushToGroup(group string, msg *protocol.Message, excludeAgent stri
 		h.PushToAgent(member, msg)
 	}
 }
+
+// PushStatusChange broadcasts an agent's status change to all connected agents.
+func (h *Hub) PushStatusChange(agentName, status string) {
+	push := protocol.WSPush{
+		Type: "agent_status",
+		Data: map[string]string{"agent": agentName, "status": status},
+	}
+	data, err := json.Marshal(push)
+	if err != nil {
+		return
+	}
+
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	for _, ch := range h.agents {
+		select {
+		case ch <- data:
+		default:
+		}
+	}
+}

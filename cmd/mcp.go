@@ -55,6 +55,7 @@ var mcpCmd = &cobra.Command{
 		s.AddTool(mcpmod.BuildReadMessagesTool(), mcpmod.MakeReadMessagesHandler(client))
 		s.AddTool(mcpmod.BuildListAgentsTool(), mcpmod.MakeListAgentsHandler(client))
 		s.AddTool(mcpmod.BuildListGroupsTool(), mcpmod.MakeListGroupsHandler(client))
+		s.AddTool(mcpmod.BuildUpdateStatusTool(), mcpmod.MakeUpdateStatusHandler(client))
 
 		go func() {
 			groupList := []string{}

@@ -27,7 +27,7 @@ func TestRegisterAndGetAgent(t *testing.T) {
 
 	assert.Equal(t, "agent-a", agent.Name)
 	assert.Equal(t, []string{"dev", "ops"}, agent.Groups)
-	assert.Equal(t, "online", agent.Status)
+	assert.Equal(t, "idle", agent.Status)
 	assert.False(t, agent.RegisteredAt.IsZero())
 }
 
@@ -144,7 +144,7 @@ func TestSetAgentOffline(t *testing.T) {
 
 	agent, err := s.GetAgent("agent-a")
 	require.NoError(t, err)
-	assert.Equal(t, "online", agent.Status)
+	assert.Equal(t, "idle", agent.Status)
 
 	err = s.SetAgentStatus("agent-a", "offline")
 	require.NoError(t, err)
