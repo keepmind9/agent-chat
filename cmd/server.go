@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
@@ -13,6 +14,9 @@ import (
 	"github.com/keepmind9/agent-chat/internal/server"
 	"github.com/keepmind9/agent-chat/internal/store"
 )
+
+// WebFS is set by main before Execute to serve embedded web assets.
+var WebFS fs.FS
 
 var (
 	serverPort string
@@ -53,7 +57,8 @@ var serverCmd = &cobra.Command{
 
 		r.GET("/ws", gin.WrapF(h.HandleWebSocket))
 
-		r.StaticFS("/web", http.Dir("./web"))
+		webContent, _ := fs.Sub(WebFS, "web")
+		r.StaticFS("/web", http.FS(webContent))
 		r.GET("/", func(c *gin.Context) { c.Redirect(http.StatusFound, "/web/") })
 
 		logger.Info("agent-chat server starting", "port", serverPort)
