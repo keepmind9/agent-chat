@@ -204,7 +204,35 @@ AGENT_GROUPS = "dev-team,frontend"
 
 Or global config at `~/.codex/config.toml` with the same format.
 
-### 4. For Other MCP-Compatible Agents
+### 4. Configure MCP Plugin for Gemini CLI
+
+Create `.gemini/settings.json` in your project root:
+
+```json
+{
+  "mcpServers": {
+    "agent-chat": {
+      "command": "/path/to/agent-chat",
+      "args": ["mcp"],
+      "env": {
+        "AGENT_CHAT_SERVER": "http://localhost:8080",
+        "AGENT_NAME": "fullstack-dev",
+        "AGENT_GROUPS": "dev-team"
+      }
+    }
+  }
+}
+```
+
+Or add to global config at `~/.gemini/settings.json` with the same format.
+
+You can also use the CLI command:
+
+```bash
+gemini mcp add -e AGENT_CHAT_SERVER=http://localhost:8080 -e AGENT_NAME=fullstack-dev agent-chat /path/to/agent-chat mcp
+```
+
+### 5. For Other MCP-Compatible Agents
 
 The MCP plugin works with any MCP-compatible agent. Point the agent's MCP config to the `agent-chat` binary with `args: ["mcp"]` and the same environment variables.
 

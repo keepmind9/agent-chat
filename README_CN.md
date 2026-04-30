@@ -198,7 +198,35 @@ AGENT_GROUPS = "dev-team,frontend"
 
 或全局配置 `~/.codex/config.toml`，格式相同。
 
-### 4. 其他 MCP 兼容 Agent
+### 4. 为 Gemini CLI 配置 MCP Plugin
+
+在项目根目录创建 `.gemini/settings.json`：
+
+```json
+{
+  "mcpServers": {
+    "agent-chat": {
+      "command": "/path/to/agent-chat",
+      "args": ["mcp"],
+      "env": {
+        "AGENT_CHAT_SERVER": "http://localhost:8080",
+        "AGENT_NAME": "fullstack-dev",
+        "AGENT_GROUPS": "dev-team"
+      }
+    }
+  }
+}
+```
+
+或全局配置 `~/.gemini/settings.json`，格式相同。
+
+也可以使用 CLI 命令：
+
+```bash
+gemini mcp add -e AGENT_CHAT_SERVER=http://localhost:8080 -e AGENT_NAME=fullstack-dev agent-chat /path/to/agent-chat mcp
+```
+
+### 5. 其他 MCP 兼容 Agent
 
 MCP plugin 兼容任何支持 MCP 的 Agent。将 Agent 的 MCP 配置指向 `agent-chat` 二进制，使用 `args: ["mcp"]` 和相同的环境变量。
 
