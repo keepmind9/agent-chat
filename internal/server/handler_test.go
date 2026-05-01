@@ -193,3 +193,74 @@ func TestHandleUpdateStatus(t *testing.T) {
 		})
 	}
 }
+
+func TestHandleMarkRead(t *testing.T) {
+	h := setupTestHandler(t)
+
+	for _, name := range []string{"agent-a", "agent-b"} {
+		body := `{"name":"` + name + `","groups":[]}`
+		req := httptest.NewRequest(http.MethodPost, "/api/register", bytes.NewBufferString(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		h.HandleRegister(w, req)
+		require.Equal(t, http.StatusOK, w.Result().StatusCode)
+	}
+
+	sendBody := `{"from":"agent-a","to":"agent-b","group":"","content":"hello"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/send", bytes.NewBufferString(sendBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	h.HandleSend(w, req)
+	require.Equal(t, http.StatusOK, w.Result().StatusCode)
+
+	var result map[string]interface{}
+	require.NoError(t, json.NewDecoder(w.Result().Body).Decode(&result))
+	msgID, ok := result["id"].(string)
+	require.True(t, ok)
+
+	req = httptest.NewRequest(http.MethodPost, "/api/messages/read", bytes.NewBufferString(`{"agent_name":"agent-b","message_ids":["`+msgID+`"]}`))
+	req.Header.Set("Content-Type", "application/json")
+	w = httptest.NewRecorder()
+	h.HandleMarkRead(w, req)
+	require.Equal(t, http.StatusOK, w.Result().StatusCode)
+
+	req = httptest.NewRequest(http.MethodGet, "/api/messages?agent=agent-b&limit=10", nil)
+	w = httptest.NewRecorder()
+	h.HandleGetMessages(w, req)
+	var msgs []map[string]interface{}
+	require.NoError(t, json.NewDecoder(w.Result().Body).Decode(&msgs))
+	require.Len(t, msgs, 0)
+}
+
+func TestHandleRecentMessages(t *testing.T) {
+	h := setupTestHandler(t)
+
+	for _, name := range []string{"agent-a", "agent-b"} {
+		body := `{"name":"` + name + `","groups":[]}`
+		req := httptest.NewRequest(http.MethodPost, "/api/register", bytes.NewBufferString(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		h.HandleRegister(w, req)
+	}
+
+	for _, content := range []string{"msg1", "msg2"} {
+		body := `{"from":"agent-a","to":"agent-b","group":"","content":"` + content + `"}`
+		req := httptest.NewRequest(http.MethodPost, "/api/send", bytes.NewBufferString(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		h.HandleSend(w, req)
+		require.Equal(t, http.StatusOK, w.Result().StatusCode)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/messages/recent?limit=5", nil)
+	w := httptest.NewRecorder()
+	h.HandleRecentMessages(w, req)
+
+	resp := w.Result()
+	defer resp.Body.Close()
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var messages []map[string]interface{}
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&messages))
+	require.Len(t, messages, 2)
+}

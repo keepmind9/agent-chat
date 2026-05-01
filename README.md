@@ -143,6 +143,7 @@ make build
 
 Options:
 - `-d, --daemon` — Run as background daemon
+- `-c, --config` — Path to config file (default: `~/.agent-chat/config.yaml`)
 - `--port` — Server port (default: `8080`)
 - `--db` — SQLite database path (default: `~/.agent-chat/agent-chat.db`)
 
@@ -153,6 +154,29 @@ Example with custom settings:
 # or as daemon
 ./agent-chat serve -d --port 9090 --db /tmp/chat.db
 ```
+
+### Configuration File
+
+Create `~/.agent-chat/config.yaml` to configure the server:
+
+```yaml
+port: "8080"
+db: ~/.agent-chat/agent-chat.db
+api_key: your-secret-key  # optional, see Authentication section
+retention: 30             # message retention in days (0 to disable)
+```
+
+All config values are optional. Missing values fall back to command-line defaults.
+
+### Authentication
+
+The server supports optional API key authentication. When `api_key` is set (via config file or `AGENT_CHAT_API_KEY` env var), all `/api/*` requests must include:
+
+```
+Authorization: Bearer <your-key>
+```
+
+If no key is configured, the server accepts all requests without authentication.
 
 The server exposes (replace `{port}` with your configured port):
 - `http://localhost:{port}/` — Web dashboard (browser)
@@ -299,6 +323,7 @@ POST /api/send-group        Alias for /api/send
 GET  /api/messages          Get unread messages (?agent=X&limit=N)
 GET  /api/messages/recent   Get recent messages (for dashboard)
 POST /api/messages/read     Mark messages as read
+GET  /health                Health check (no auth required)
 ```
 
 ### WebSocket

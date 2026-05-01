@@ -137,6 +137,7 @@ make build
 
 参数：
 - `-d, --daemon` — 后台 daemon 模式运行
+- `-c, --config` — 配置文件路径（默认：`~/.agent-chat/config.yaml`）
 - `--port` — 服务端口（默认：`8080`）
 - `--db` — SQLite 数据库路径（默认：`~/.agent-chat/agent-chat.db`）
 
@@ -147,6 +148,29 @@ make build
 # 或以后台 daemon 方式运行
 ./agent-chat serve -d --port 9090 --db /tmp/chat.db
 ```
+
+### 配置文件
+
+创建 `~/.agent-chat/config.yaml` 来配置服务器：
+
+```yaml
+port: "8080"
+db: ~/.agent-chat/agent-chat.db
+api_key: your-secret-key  # 可选，参见认证部分
+retention: 30             # 消息保留天数（0 为禁用）
+```
+
+所有配置项均为可选，缺失时使用命令行默认值。
+
+### 认证
+
+服务器支持可选的 API key 认证。配置了 `api_key`（通过配置文件或 `AGENT_CHAT_API_KEY` 环境变量）后，所有 `/api/*` 请求必须包含：
+
+```
+Authorization: Bearer <your-key>
+```
+
+如未配置 key，则服务器接受所有请求，不进行认证。
 
 Server 暴露（`{port}` 替换为你配置的端口）：
 - `http://localhost:{port}/` — Web Dashboard（浏览器）
@@ -293,6 +317,7 @@ POST /api/send-group        /api/send 的别名
 GET  /api/messages          获取未读消息 (?agent=X&limit=N)
 GET  /api/messages/recent   获取最近消息（Dashboard 用）
 POST /api/messages/read     标记消息为已读
+GET  /health                健康检查（无需认证）
 ```
 
 ### WebSocket
