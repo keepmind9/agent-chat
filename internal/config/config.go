@@ -11,9 +11,9 @@ import (
 const ConfigFileName = "config.yaml"
 
 type Config struct {
-	Port     string `yaml:"port"`
-	DB       string `yaml:"db"`
-	APIKey   string `yaml:"api_key"`
+	Port      string `yaml:"port"`
+	DB        string `yaml:"db"`
+	APIKey    string `yaml:"api_key"`
 	Retention int    `yaml:"retention"`
 }
 
