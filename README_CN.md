@@ -128,17 +128,24 @@ make build
 ### 1. 启动 Central Server
 
 ```bash
-./agent-chat server
+# 前台运行
+./agent-chat serve
+
+# 后台 daemon 运行（使用 'agent-chat stop' 关闭）
+./agent-chat serve -d
 ```
 
 参数：
+- `-d, --daemon` — 后台 daemon 模式运行
 - `--port` — 服务端口（默认：`8080`）
 - `--db` — SQLite 数据库路径（默认：`~/.agent-chat/agent-chat.db`）
 
 自定义示例：
 
 ```bash
-./agent-chat server --port 9090 --db /tmp/chat.db
+./agent-chat serve --port 9090 --db /tmp/chat.db
+# 或以后台 daemon 方式运行
+./agent-chat serve -d --port 9090 --db /tmp/chat.db
 ```
 
 Server 暴露（`{port}` 替换为你配置的端口）：
@@ -306,9 +313,12 @@ agent-chat/
 ├── main.go                      # 单二进制入口
 ├── cmd/
 │   ├── root.go                  # Cobra 根命令
-│   ├── server.go                # "server" 子命令
+│   ├── server.go                # "serve" 子命令（别名："start"）
+│   ├── stop.go                  # "stop" 子命令（关闭 daemon）
+│   ├── daemon_unix.go           # Unix daemon 支持（fork+exec）
+│   ├── daemon_windows.go        # Windows daemon 支持
 │   ├── mcp.go                   # "mcp" 子命令
-│   └── version.go               # "version" 子命令
+│   └── version.go              # "version" 子命令
 ├── internal/
 │   ├── store/store.go          # SQLite 持久层
 │   ├── server/

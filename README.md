@@ -134,17 +134,24 @@ make build
 ### 1. Start the Central Server
 
 ```bash
-./agent-chat server
+# Foreground
+./agent-chat serve
+
+# Background daemon (use 'agent-chat stop' to shut it down)
+./agent-chat serve -d
 ```
 
 Options:
+- `-d, --daemon` — Run as background daemon
 - `--port` — Server port (default: `8080`)
 - `--db` — SQLite database path (default: `~/.agent-chat/agent-chat.db`)
 
 Example with custom settings:
 
 ```bash
-./agent-chat server --port 9090 --db /tmp/chat.db
+./agent-chat serve --port 9090 --db /tmp/chat.db
+# or as daemon
+./agent-chat serve -d --port 9090 --db /tmp/chat.db
 ```
 
 The server exposes (replace `{port}` with your configured port):
@@ -312,7 +319,10 @@ agent-chat/
 ├── main.go                      # Single binary entry point
 ├── cmd/
 │   ├── root.go                  # Cobra root command
-│   ├── server.go                # "server" subcommand
+│   ├── server.go                # "serve" subcommand (alias: "start")
+│   ├── stop.go                  # "stop" subcommand (daemon shutdown)
+│   ├── daemon_unix.go           # Unix daemon support (fork+exec)
+│   ├── daemon_windows.go        # Windows daemon support
 │   ├── mcp.go                   # "mcp" subcommand
 │   └── version.go               # "version" subcommand
 ├── internal/
