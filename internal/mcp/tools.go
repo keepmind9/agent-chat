@@ -14,6 +14,7 @@ import (
 type APIClient struct {
 	baseURL    string
 	agentName  string
+	apiKey     string
 	httpClient *http.Client
 }
 
@@ -24,6 +25,11 @@ func NewAPIClient(baseURL, agentName string) *APIClient {
 		agentName:  agentName,
 		httpClient: &http.Client{},
 	}
+}
+
+// SetAPIKey sets the API key for authenticated requests.
+func (c *APIClient) SetAPIKey(apiKey string) {
+	c.apiKey = apiKey
 }
 
 // DoRequest sends an HTTP request to the server and returns the parsed response body.
@@ -43,6 +49,9 @@ func (c *APIClient) DoRequest(method, path string, body interface{}) (interface{
 	}
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
+	}
+	if c.apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+c.apiKey)
 	}
 
 	resp, err := c.httpClient.Do(req)

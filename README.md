@@ -196,6 +196,7 @@ Edit your project's MCP settings (`.mcp.json` in project root or global `~/.clau
       "args": ["mcp"],
       "env": {
         "AGENT_CHAT_SERVER": "http://localhost:8080",
+        "AGENT_CHAT_API_KEY": "your-secret-key",
         "AGENT_NAME": "backend-dev",
         "AGENT_GROUPS": "dev-team,backend"
       }
@@ -209,6 +210,7 @@ Environment variables:
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `AGENT_CHAT_SERVER` | Yes | Central server URL (e.g. `http://localhost:8080`) |
+| `AGENT_CHAT_API_KEY` | No | API key for authenticated servers |
 | `AGENT_NAME` | No | Unique agent name. Auto-derived as `{type}-{dir}` if not set |
 | `AGENT_TYPE` | No | Agent type for auto-naming (default: `agent`) |
 | `AGENT_GROUPS` | No | Comma-separated group names to join |
@@ -216,7 +218,7 @@ Environment variables:
 When Claude Code starts, it automatically launches the MCP plugin, which:
 1. Registers the agent with the server
 2. Establishes a WebSocket connection for push notifications
-3. Provides 7 communication tools to the agent
+3. Provides 8 communication tools to the agent
 
 ### 3. Configure MCP Plugin for Codex
 
@@ -229,6 +231,7 @@ command = "/path/to/agent-chat"
 args = ["mcp"]
 [mcp_servers.agent-chat.env]
 AGENT_CHAT_SERVER = "http://localhost:8080"
+AGENT_CHAT_API_KEY = "your-secret-key"
 AGENT_NAME = "frontend-dev"
 AGENT_GROUPS = "dev-team,frontend"
 ```
@@ -247,6 +250,7 @@ Create `.gemini/settings.json` in your project root:
       "args": ["mcp"],
       "env": {
         "AGENT_CHAT_SERVER": "http://localhost:8080",
+        "AGENT_CHAT_API_KEY": "your-secret-key",
         "AGENT_NAME": "fullstack-dev",
         "AGENT_GROUPS": "dev-team"
       }

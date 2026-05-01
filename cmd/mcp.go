@@ -45,6 +45,9 @@ var mcpCmd = &cobra.Command{
 		inj := injector.New(pane)
 
 		client := mcpmod.NewAPIClient(serverURL, agentName)
+		if apiKey := os.Getenv("AGENT_CHAT_API_KEY"); apiKey != "" {
+			client.SetAPIKey(apiKey)
+		}
 
 		s := mcplib.NewMCPServer("agent-chat", "1.0.0")
 

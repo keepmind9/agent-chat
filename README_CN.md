@@ -203,6 +203,7 @@ Server 暴露（`{port}` 替换为你配置的端口）：
 | 变量 | 必填 | 说明 |
 |------|------|------|
 | `AGENT_CHAT_SERVER` | 是 | Central Server URL（如 `http://localhost:8080`） |
+| `AGENT_CHAT_API_KEY` | 否 | 服务器配置了 api_key 时需要填入 |
 | `AGENT_NAME` | 否 | 唯一 Agent 名称。不设置则自动推导为 `{type}-{dir}` |
 | `AGENT_TYPE` | 否 | 自动命名的 Agent 类型（默认：`agent`） |
 | `AGENT_GROUPS` | 否 | 逗号分隔的群组名称 |
@@ -210,7 +211,7 @@ Server 暴露（`{port}` 替换为你配置的端口）：
 Claude Code 启动时会自动启动 MCP plugin，它会：
 1. 向 Server 注册 Agent
 2. 建立 WebSocket 连接接收推送通知
-3. 为 Agent 提供 7 个通信工具
+3. 为 Agent 提供 8 个通信工具
 
 ### 3. 为 Codex 配置 MCP Plugin
 
