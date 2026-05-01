@@ -2,9 +2,10 @@
 package store
 
 import (
+	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -19,10 +20,21 @@ type Store struct {
 
 // Open creates or opens a SQLite database at path and runs schema migrations.
 func Open(path string) (*Store, error) {
-	db, err := sql.Open("sqlite3", path)
+	dsn := path
+	if !strings.Contains(dsn, "?") {
+		dsn += "?"
+	} else {
+		dsn += "&"
+	}
+	dsn += "_journal_mode=WAL&_busy_timeout=5000&_synchronous=NORMAL"
+
+	db, err := sql.Open("sqlite3", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("open db: %w", err)
 	}
+
+	// SQLite single-writer constraint: serialize all access through one connection.
+	db.SetMaxOpenConns(1)
 
 	if err := migrate(db); err != nil {
 		db.Close()
@@ -60,47 +72,106 @@ func migrate(db *sql.DB) error {
 		read_at     DATETIME NOT NULL DEFAULT (datetime('now')),
 		PRIMARY KEY (message_id, agent_name)
 	);
+	CREATE TABLE IF NOT EXISTS agent_groups (
+		agent_name TEXT NOT NULL,
+		group_name TEXT NOT NULL,
+		PRIMARY KEY (agent_name, group_name)
+	);
+	CREATE INDEX IF NOT EXISTS idx_agent_groups_group ON agent_groups(group_name);
 	`
-	_, err := db.Exec(schema)
-	return err
+	if _, err := db.Exec(schema); err != nil {
+		return err
+	}
+
+	// One-time migration: copy group data from legacy JSON column to agent_groups.
+	var count int
+	if err := db.QueryRow("SELECT COUNT(*) FROM agent_groups").Scan(&count); err != nil {
+		return err
+	}
+	if count == 0 {
+		_, _ = db.Exec(`
+			INSERT OR IGNORE INTO agent_groups (agent_name, group_name)
+			SELECT a.name, je.value FROM agents a, json_each(a.groups) je
+			WHERE a.groups != '[]'
+		`)
+	}
+
+	return nil
 }
 
-// RegisterAgent inserts a new agent with its groups encoded as JSON.
+// RegisterAgent inserts a new agent and its group memberships.
 func (s *Store) RegisterAgent(name string, groups []string) error {
-	groupsJSON, err := json.Marshal(groups)
+	tx, err := s.db.Begin()
 	if err != nil {
-		return fmt.Errorf("marshal groups: %w", err)
+		return fmt.Errorf("begin tx: %w", err)
 	}
-	_, err = s.db.Exec(
-		"INSERT INTO agents (name, groups, status, registered_at) VALUES (?, ?, 'idle', ?)",
-		name, string(groupsJSON), time.Now().UTC(),
+
+	_, err = tx.Exec(
+		"INSERT INTO agents (name, groups, status, registered_at) VALUES (?, '[]', 'idle', ?)",
+		name, time.Now().UTC(),
 	)
 	if err != nil {
+		tx.Rollback()
 		return fmt.Errorf("insert agent: %w", err)
+	}
+
+	if err := syncAgentGroups(tx, name, groups); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit()
+}
+
+// syncAgentGroups replaces the group memberships for an agent within a transaction.
+func syncAgentGroups(tx *sql.Tx, agentName string, groups []string) error {
+	_, err := tx.Exec("DELETE FROM agent_groups WHERE agent_name = ?", agentName)
+	if err != nil {
+		return fmt.Errorf("delete old groups: %w", err)
+	}
+	for _, g := range groups {
+		_, err := tx.Exec(
+			"INSERT INTO agent_groups (agent_name, group_name) VALUES (?, ?)",
+			agentName, g,
+		)
+		if err != nil {
+			return fmt.Errorf("insert group: %w", err)
+		}
 	}
 	return nil
 }
 
 // GetAgent retrieves an agent by name.
 func (s *Store) GetAgent(name string) (*protocol.Agent, error) {
-	row := s.db.QueryRow(
-		"SELECT name, groups, status, registered_at FROM agents WHERE name = ?",
-		name,
-	)
-	return scanAgent(row)
+	row := s.db.QueryRow(`
+		SELECT a.name, a.status, a.registered_at, GROUP_CONCAT(ag.group_name)
+		FROM agents a
+		LEFT JOIN agent_groups ag ON a.name = ag.agent_name
+		WHERE a.name = ?
+		GROUP BY a.name
+	`, name)
+	return scanAgentWithGroups(row)
 }
 
-func scanAgent(row *sql.Row) (*protocol.Agent, error) {
+// scanAgentWithGroups scans a row that includes a GROUP_CONCAT groups column.
+func scanAgentWithGroups(row *sql.Row) (*protocol.Agent, error) {
 	var a protocol.Agent
-	var groupsStr string
-	err := row.Scan(&a.Name, &groupsStr, &a.Status, &a.RegisteredAt)
+	var groupsStr sql.NullString
+	err := row.Scan(&a.Name, &a.Status, &a.RegisteredAt, &groupsStr)
 	if err != nil {
 		return nil, fmt.Errorf("scan agent: %w", err)
 	}
-	if err := json.Unmarshal([]byte(groupsStr), &a.Groups); err != nil {
-		return nil, fmt.Errorf("unmarshal groups: %w", err)
-	}
+	a.Groups = splitGroups(groupsStr)
 	return &a, nil
+}
+
+// splitGroups splits a GROUP_CONCAT result into a slice.
+// Returns nil (not []) for empty/null input.
+func splitGroups(groupsStr sql.NullString) []string {
+	if !groupsStr.Valid || groupsStr.String == "" {
+		return nil
+	}
+	return strings.Split(groupsStr.String, ",")
 }
 
 // SetAgentStatus updates the status field of an agent.
@@ -118,7 +189,12 @@ func (s *Store) SetAgentStatus(name, status string) error {
 
 // ListAgents returns all registered agents.
 func (s *Store) ListAgents() ([]*protocol.Agent, error) {
-	rows, err := s.db.Query("SELECT name, groups, status, registered_at FROM agents")
+	rows, err := s.db.Query(`
+		SELECT a.name, a.status, a.registered_at, GROUP_CONCAT(ag.group_name)
+		FROM agents a
+		LEFT JOIN agent_groups ag ON a.name = ag.agent_name
+		GROUP BY a.name
+	`)
 	if err != nil {
 		return nil, fmt.Errorf("query agents: %w", err)
 	}
@@ -127,13 +203,11 @@ func (s *Store) ListAgents() ([]*protocol.Agent, error) {
 	var agents []*protocol.Agent
 	for rows.Next() {
 		var a protocol.Agent
-		var groupsStr string
-		if err := rows.Scan(&a.Name, &groupsStr, &a.Status, &a.RegisteredAt); err != nil {
+		var groupsStr sql.NullString
+		if err := rows.Scan(&a.Name, &a.Status, &a.RegisteredAt, &groupsStr); err != nil {
 			return nil, fmt.Errorf("scan agent: %w", err)
 		}
-		if err := json.Unmarshal([]byte(groupsStr), &a.Groups); err != nil {
-			return nil, fmt.Errorf("unmarshal groups: %w", err)
-		}
+		a.Groups = splitGroups(groupsStr)
 		agents = append(agents, &a)
 	}
 	return agents, rows.Err()
@@ -178,13 +252,12 @@ func (s *Store) GetUnreadMessages(agent string, limit int) ([]*protocol.Message,
 		WHERE m.from_agent != ?
 		  AND (
 		    m.to_agent = ?
-		    OR EXISTS (
-		      SELECT 1 FROM agents a
-		      WHERE a.name = ?
-		        AND grp != ''
-		        AND EXISTS (
-		          SELECT 1 FROM json_each(a.groups) je WHERE je.value = m.grp
-		        )
+		    OR (
+		      m.grp != ''
+		      AND EXISTS (
+		        SELECT 1 FROM agent_groups ag
+		        WHERE ag.agent_name = ? AND ag.group_name = m.grp
+		      )
 		    )
 		  )
 		  AND NOT EXISTS (
@@ -222,10 +295,10 @@ func (s *Store) MarkRead(agent string, messageIDs []string) error {
 
 // GetGroupMembers returns the names of all agents belonging to a group.
 func (s *Store) GetGroupMembers(group string) ([]string, error) {
-	rows, err := s.db.Query(`
-		SELECT a.name FROM agents a, json_each(a.groups) je
-		WHERE je.value = ?
-	`, group)
+	rows, err := s.db.Query(
+		"SELECT agent_name FROM agent_groups WHERE group_name = ?",
+		group,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("query group members: %w", err)
 	}
@@ -244,7 +317,7 @@ func (s *Store) GetGroupMembers(group string) ([]string, error) {
 
 // ListGroups returns all distinct group names across all agents.
 func (s *Store) ListGroups() ([]string, error) {
-	rows, err := s.db.Query("SELECT DISTINCT je.value FROM agents a, json_each(a.groups) je")
+	rows, err := s.db.Query("SELECT DISTINCT group_name FROM agent_groups")
 	if err != nil {
 		return nil, fmt.Errorf("query groups: %w", err)
 	}
@@ -271,6 +344,35 @@ func (s *Store) GetRecentMessages(limit int) ([]*protocol.Message, error) {
 		return nil, fmt.Errorf("query recent: %w", err)
 	}
 	return scanMessages(rows)
+}
+
+// DeleteOldMessages removes messages older than retentionDays and their
+// associated read records. Returns the number of messages deleted.
+func (s *Store) DeleteOldMessages(ctx context.Context, retentionDays int) (int64, error) {
+	if retentionDays <= 0 {
+		return 0, nil
+	}
+
+	cutoff := time.Now().UTC().AddDate(0, 0, -retentionDays)
+
+	_, err := s.db.ExecContext(ctx,
+		"DELETE FROM message_reads WHERE message_id IN (SELECT id FROM messages WHERE created_at < ?)",
+		cutoff,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("delete old message reads: %w", err)
+	}
+
+	res, err := s.db.ExecContext(ctx,
+		"DELETE FROM messages WHERE created_at < ?",
+		cutoff,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("delete old messages: %w", err)
+	}
+
+	n, _ := res.RowsAffected()
+	return n, nil
 }
 
 // scanMessages scans a set of rows into protocol.Message slices.

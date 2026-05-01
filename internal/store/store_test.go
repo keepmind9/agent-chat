@@ -1,7 +1,9 @@
 package store
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -198,4 +200,57 @@ func TestGetRecentMessages(t *testing.T) {
 	for i := 1; i < len(msgs); i++ {
 		assert.False(t, msgs[i].CreatedAt.After(msgs[i-1].CreatedAt))
 	}
+}
+
+func TestDeleteOldMessages(t *testing.T) {
+	s := openTestStore(t)
+
+	require.NoError(t, s.RegisterAgent("agent-a", nil))
+	require.NoError(t, s.RegisterAgent("agent-b", nil))
+
+	// Insert an old message by backdating created_at.
+	_, err := s.db.Exec(
+		"INSERT INTO messages (id, from_agent, to_agent, grp, content, in_reply_to, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		"msg-old-1", "agent-a", "agent-b", "", "very old", "", time.Now().UTC().AddDate(0, 0, -60),
+	)
+	require.NoError(t, err)
+
+	// Mark the old message as read.
+	err = s.MarkRead("agent-b", []string{"msg-old-1"})
+	require.NoError(t, err)
+
+	// Insert a recent message.
+	_, err = s.SaveMessage("agent-a", "agent-b", "", "new message", "")
+	require.NoError(t, err)
+
+	// Delete messages older than 30 days.
+	deleted, err := s.DeleteOldMessages(context.Background(), 30)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), deleted)
+
+	// Old message is gone.
+	_, err = s.GetMessage("msg-old-1")
+	assert.Error(t, err)
+
+	// Recent message still exists.
+	unread, err := s.GetUnreadMessages("agent-b", 10)
+	require.NoError(t, err)
+	assert.Len(t, unread, 1)
+	assert.Equal(t, "new message", unread[0].Content)
+}
+
+func TestDeleteOldMessagesNegativeRetention(t *testing.T) {
+	s := openTestStore(t)
+
+	deleted, err := s.DeleteOldMessages(context.Background(), -1)
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), deleted)
+}
+
+func TestDeleteOldMessagesZeroRetention(t *testing.T) {
+	s := openTestStore(t)
+
+	deleted, err := s.DeleteOldMessages(context.Background(), 0)
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), deleted)
 }
