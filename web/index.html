@@ -82,7 +82,17 @@ button,select{font-family:inherit}
 .msg-arrow{color:var(--text-muted);font-size:8px}
 .msg-time{margin-left:auto;color:var(--text-muted);font-size:10px;white-space:nowrap;font-family:var(--font-mono);font-variant-numeric:tabular-nums}
 .msg-body{font-size:12px;line-height:1.55;word-break:break-word;color:var(--text)}
-.msg-reply{font-size:10px;color:var(--text-muted);font-style:italic;margin-bottom:3px}
+.msg-reply{font-size:11px;color:var(--purple);background:rgba(192,132,252,.06);border-left:2px solid var(--purple);padding:4px 8px;margin-bottom:6px;border-radius:0 4px 4px 0;cursor:pointer;transition:background .12s}
+.msg-reply:hover{background:rgba(192,132,252,.12)}
+.thread-connector{border-left:2px solid var(--purple);margin-left:16px;padding-left:10px;margin-top:4px}
+.thread-connector .msg{background:var(--bg-elevated);border-color:var(--border);padding:8px 12px}
+.thread-connector .msg:hover{border-color:var(--border-light)}
+.thread-badge{display:inline-flex;align-items:center;gap:3px;background:rgba(96,165,250,.15);color:var(--blue);font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;margin-left:4px;cursor:pointer;border:1px solid rgba(96,165,250,.2);transition:background .12s}
+.thread-badge:hover{background:rgba(96,165,250,.25)}
+.thread-expand{font-size:11px;color:var(--blue);cursor:pointer;padding:4px 0 4px 18px;font-weight:500;transition:color .12s}
+.thread-expand:hover{color:#93C5FD}
+.msg-highlight{animation:highlightFade 2s ease}
+@keyframes highlightFade{0%{background:rgba(192,132,252,.12)}100%{background:var(--bg-surface)}}
 .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:4px}
 .empty-icon{font-size:28px;color:var(--text-muted);opacity:.3;margin-bottom:4px}
 .empty-title{font-size:13px;font-weight:500;color:var(--text-dim)}
@@ -193,6 +203,43 @@ button,select{font-family:inherit}
   }
   function dateKey(ts){var d=new Date(ts);if(isNaN(d.getTime()))return'';var now=new Date();if(d.toDateString()===now.toDateString())return'Today';return d.toLocaleDateString('en-US',{month:'short',day:'numeric'})}
 
+  // Build a lookup table: message_id -> message for thread resolution.
+  function buildMsgMap(msgs){var m={};msgs.forEach(function(msg){m[msg.id]=msg});return m}
+
+  // Build thread tree: parent_id -> [child messages] sorted by time.
+  function buildThreads(msgs){
+    var children={};
+    msgs.forEach(function(m){
+      if(m.in_reply_to){
+        if(!children[m.in_reply_to])children[m.in_reply_to]=[];
+        children[m.in_reply_to].push(m)
+      }
+    });
+    return children
+  }
+
+  function renderMsgHTML(m,msgMap,children,expanded){
+    var ig=!!m.group,cls=ig?'group':'direct';
+    var to=ig?'<span class="msg-group-tag">'+esc(m.group)+'</span>':'<span class="msg-to">'+esc(m.to_agent)+'</span>';
+    var reply='';
+    if(m.in_reply_to){
+      var parent=msgMap[m.in_reply_to];
+      var preview=parent?esc(truncate(parent.content,60)):'<span style="opacity:.5">'+esc(m.in_reply_to)+'</span>';
+      var fromHint=parent?'<span style="color:var(--blue);font-weight:500">'+esc(parent.from_agent)+'</span> ':'';
+      reply='<div class="msg-reply" data-thread-id="'+esc(m.in_reply_to)+'" title="Click to jump to thread">&#x1F4AC; Replying to '+fromHint+preview+'</div>'
+    }
+    var threadBadge='';
+    var kids=children[m.id]||[];
+    if(kids.length>0){
+      threadBadge='<span class="thread-badge" data-thread-id="'+esc(m.id)+'">'+kids.length+' '+(kids.length===1?'reply':'replies')+'</span>'
+    }
+    return '<div class="msg '+cls+'" data-msg-id="'+esc(m.id)+'"><div class="msg-head"><span class="msg-from">'+esc(m.from_agent)+'</span><span class="msg-arrow">&#x2192;</span>'+to+threadBadge+'<span class="msg-time">'+esc(fmtTime(m.created_at))+'</span></div>'+reply+'<div class="msg-body">'+esc(m.content)+'</div></div>'
+  }
+
+  function truncate(s,n){var r=[].slice.call(s);return r.length<=n?s:r.slice(0,n).join('')+'...'}
+
+  var expandedThreads={};
+
   function renderMessages(){
     var av=agentFilterEl.value,gv=groupFilterEl.value,q=searchBox.value.toLowerCase();
     var list=cachedMessages.filter(function(m){
@@ -206,16 +253,47 @@ button,select{font-family:inherit}
       messageFeedEl.innerHTML='<div class="empty"><div class="empty-icon">&#x1F4AC;</div><div class="empty-title">No messages</div><div class="empty-desc">Messages appear here in real time</div></div>';
       return
     }
+    var msgMap=buildMsgMap(list);
+    var children=buildThreads(list);
+    // Root messages: those that are NOT replies to another message in the visible list.
+    var roots=[],childSet={};
+    list.forEach(function(m){if(m.in_reply_to&&msgMap[m.in_reply_to])childSet[m.id]=true});
+    list.forEach(function(m){if(!childSet[m.id])roots.push(m)});
+
     var html='',lastDate='';
-    list.forEach(function(m){
+    roots.forEach(function(m){
       var dk=dateKey(m.created_at);
       if(dk&&dk!==lastDate){html+='<div class="time-divider">'+esc(dk)+'</div>';lastDate=dk}
-      var ig=!!m.group,cls=ig?'group':'direct';
-      var to=ig?'<span class="msg-group-tag">'+esc(m.group)+'</span>':'<span class="msg-to">'+esc(m.to_agent)+'</span>';
-      var reply=m.in_reply_to?'<div class="msg-reply">reply to '+esc(m.in_reply_to)+'</div>':'';
-      html+='<div class="msg '+cls+'"><div class="msg-head"><span class="msg-from">'+esc(m.from_agent)+'</span><span class="msg-arrow">&#x2192;</span>'+to+'<span class="msg-time">'+esc(fmtTime(m.created_at))+'</span></div>'+reply+'<div class="msg-body">'+esc(m.content)+'</div></div>';
+      html+=renderMsgHTML(m,msgMap,children,expandedThreads);
+      var kids=children[m.id]||[];
+      if(kids.length>0){
+        if(expandedThreads[m.id]){
+          html+='<div class="thread-connector" data-thread="'+esc(m.id)+'">';
+          kids.forEach(function(k){html+=renderMsgHTML(k,msgMap,children,expandedThreads)});
+          html+='</div>'
+        }else{
+          var previewKid=kids[0];
+          html+='<div class="thread-expand" data-thread-toggle="'+esc(m.id)+'">&#x25B8; '+kids.length+' '+(kids.length===1?'reply':'replies')+' — '+esc(previewKid.from_agent)+': '+esc(truncate(previewKid.content,50))+'</div>'
+        }
+      }
     });
-    messageFeedEl.innerHTML=html
+    messageFeedEl.innerHTML=html;
+
+    // Bind thread toggle events.
+    messageFeedEl.querySelectorAll('[data-thread-toggle]').forEach(function(el){
+      el.addEventListener('click',function(){
+        var tid=el.getAttribute('data-thread-toggle');
+        expandedThreads[tid]=!expandedThreads[tid];
+        renderMessages()
+      })
+    });
+    messageFeedEl.querySelectorAll('[data-thread-id]').forEach(function(el){
+      el.addEventListener('click',function(){
+        var tid=el.getAttribute('data-thread-id');
+        expandedThreads[tid]=!expandedThreads[tid];
+        renderMessages()
+      })
+    })
   }
 
   function connectWS(){
@@ -225,6 +303,12 @@ button,select{font-family:inherit}
     ws.onmessage=function(e){try{var m=JSON.parse(e.data);if(m.type==='new_message')loadMessages();else if(m.type==='agent_status')loadAgents()}catch(x){}};
     ws.onclose=function(){wsDot.className='ws-dot off';wsLabel.textContent='Offline';setTimeout(function(){wsDelay=Math.min(wsDelay*2,30000);connectWS()},wsDelay)};
     ws.onerror=function(){}
+  }
+
+  // Scroll to a message by ID when highlighted.
+  function scrollToMsg(id){
+    var el=messageFeedEl.querySelector('[data-msg-id="'+id+'"]');
+    if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('msg-highlight');setTimeout(function(){el.classList.remove('msg-highlight')},2000)}
   }
 
   refreshBtn.addEventListener('click',function(){loadAgents();loadGroups();loadMessages()});
