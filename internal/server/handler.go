@@ -73,6 +73,21 @@ func (h *Handler) HandleSend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate that the target agent or group exists.
+	if req.To != "" {
+		if _, err := h.store.GetAgent(req.To); err != nil {
+			http.Error(w, "recipient agent not found", http.StatusNotFound)
+			return
+		}
+	}
+	if req.Group != "" {
+		members, err := h.store.GetGroupMembers(req.Group)
+		if err != nil || len(members) == 0 {
+			http.Error(w, "group not found", http.StatusNotFound)
+			return
+		}
+	}
+
 	msgID, err := h.store.SaveMessage(req.From, req.To, req.Group, req.Content, req.InReplyTo)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -135,12 +150,49 @@ func (h *Handler) HandleMarkRead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.store.MarkRead(req.AgentName, req.MessageIDs); err != nil {
+	_, err := h.store.MarkRead(req.AgentName, req.MessageIDs)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+// HandleMessageHistory returns message history filtered by query parameters.
+func (h *Handler) HandleMessageHistory(w http.ResponseWriter, r *http.Request) {
+	agent := r.URL.Query().Get("agent")
+	if agent == "" {
+		http.Error(w, "agent query parameter is required", http.StatusBadRequest)
+		return
+	}
+
+	q := store.MessageQuery{
+		Agent: agent,
+		With:  r.URL.Query().Get("with"),
+		Group: r.URL.Query().Get("group"),
+		Since: r.URL.Query().Get("since"),
+		Until: r.URL.Query().Get("until"),
+	}
+
+	limit := defaultRecentLimit
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+	q.Limit = limit
+
+	msgs, err := h.store.QueryMessages(q)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if msgs == nil {
+		msgs = []*protocol.Message{}
+	}
+	writeJSON(w, http.StatusOK, msgs)
 }
 
 // HandleListAgents returns all registered agents.

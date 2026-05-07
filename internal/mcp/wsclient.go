@@ -13,6 +13,11 @@ import (
 	"github.com/keepmind9/agent-chat/pkg/protocol"
 )
 
+const (
+	// heartbeatInterval is how often the WSClient sends ping frames to the server.
+	heartbeatInterval = 30 * time.Second
+)
+
 // WSClient connects to the agent-chat server via WebSocket to receive
 // real-time push notifications and deliver them via a Notifier.
 type WSClient struct {
@@ -83,7 +88,15 @@ func (c *WSClient) Run() {
 
 		// Reset backoff on successful connection
 		interval = initInterval
+
+		// heartbeatDone is closed when the heartbeat goroutine exits.
+		heartbeatDone := make(chan struct{})
+		go c.heartbeat(heartbeatDone)
+
 		c.readLoop()
+
+		// Signal heartbeat goroutine to stop and wait for it.
+		close(heartbeatDone)
 
 		// Connection lost, wait before retry
 		c.logger.Warn("connection lost, retrying", "retry", interval)
@@ -91,6 +104,39 @@ func (c *WSClient) Run() {
 			return
 		}
 		interval = min(time.Duration(float64(interval)*multiplier), maxInterval)
+	}
+}
+
+// heartbeat sends periodic ping frames to keep the connection alive.
+// It runs until heartbeatDone is closed or stopCh is closed.
+func (c *WSClient) heartbeat(done chan struct{}) {
+	ticker := time.NewTicker(heartbeatInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-done:
+			return
+		case <-c.stopCh:
+			return
+		case <-ticker.C:
+			c.mu.Lock()
+			conn := c.conn
+			c.mu.Unlock()
+
+			if conn == nil {
+				return
+			}
+			if err := conn.WriteControl(
+				websocket.PingMessage,
+				nil,
+				time.Now().Add(5*time.Second),
+			); err != nil {
+				c.logger.Warn("heartbeat ping failed, closing connection", "error", err)
+				conn.Close()
+				return
+			}
+		}
 	}
 }
 

@@ -143,6 +143,7 @@ func runServe() error {
 	r.POST("/api/send-group", gin.WrapF(h.HandleSend))
 	r.GET("/api/messages", gin.WrapF(h.HandleGetMessages))
 	r.GET("/api/messages/recent", gin.WrapF(h.HandleRecentMessages))
+	r.GET("/api/messages/history", gin.WrapF(h.HandleMessageHistory))
 	r.POST("/api/messages/read", gin.WrapF(h.HandleMarkRead))
 	r.GET("/api/agents", gin.WrapF(h.HandleListAgents))
 	r.GET("/api/groups", gin.WrapF(h.HandleListGroups))

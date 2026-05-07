@@ -113,7 +113,7 @@ func TestMarkRead(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, unread, 1)
 
-	err = s.MarkRead("agent-b", []string{msgID})
+	_, err = s.MarkRead("agent-b", []string{msgID})
 	require.NoError(t, err)
 
 	unread, err = s.GetUnreadMessages("agent-b", 10)
@@ -216,7 +216,7 @@ func TestDeleteOldMessages(t *testing.T) {
 	require.NoError(t, err)
 
 	// Mark the old message as read.
-	err = s.MarkRead("agent-b", []string{"msg-old-1"})
+	_, err = s.MarkRead("agent-b", []string{"msg-old-1"})
 	require.NoError(t, err)
 
 	// Insert a recent message.

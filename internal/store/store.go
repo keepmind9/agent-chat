@@ -285,23 +285,41 @@ func (s *Store) GetUnreadMessages(agent string, limit int) ([]*protocol.Message,
 }
 
 // MarkRead marks the given message IDs as read by the specified agent.
-func (s *Store) MarkRead(agent string, messageIDs []string) error {
+// It returns the subset of message IDs that were newly marked (not previously read).
+func (s *Store) MarkRead(agent string, messageIDs []string) ([]string, error) {
 	tx, err := s.db.Begin()
 	if err != nil {
-		return fmt.Errorf("begin tx: %w", err)
+		return nil, fmt.Errorf("begin tx: %w", err)
 	}
 	now := time.Now().UTC()
+	var newlyRead []string
 	for _, id := range messageIDs {
+		// Check if already read.
+		var count int
+		if err := tx.QueryRow(
+			"SELECT COUNT(*) FROM message_reads WHERE message_id = ? AND agent_name = ?",
+			id, agent,
+		).Scan(&count); err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("check read status: %w", err)
+		}
+		if count > 0 {
+			continue
+		}
 		_, err := tx.Exec(
-			"INSERT OR IGNORE INTO message_reads (message_id, agent_name, read_at) VALUES (?, ?, ?)",
+			"INSERT INTO message_reads (message_id, agent_name, read_at) VALUES (?, ?, ?)",
 			id, agent, now,
 		)
 		if err != nil {
 			tx.Rollback()
-			return fmt.Errorf("mark read: %w", err)
+			return nil, fmt.Errorf("mark read: %w", err)
 		}
+		newlyRead = append(newlyRead, id)
 	}
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return newlyRead, nil
 }
 
 // GetGroupMembers returns the names of all agents belonging to a group.
@@ -399,4 +417,91 @@ func scanMessages(rows *sql.Rows) ([]*protocol.Message, error) {
 		msgs = append(msgs, &m)
 	}
 	return msgs, rows.Err()
+}
+
+// MessageQuery holds parameters for filtering message history.
+type MessageQuery struct {
+	Agent string // required: match from_agent, to_agent, or group membership
+	With  string // optional: filter to direct messages between agent and this peer
+	Group string // optional: filter to a specific group
+	Since string // optional RFC3339: only messages after this time
+	Until string // optional RFC3339: only messages before this time
+	Limit int    // max results (default 50)
+}
+
+// sqliteDatetimeFormat matches the datetime format used by SQLite's datetime() function.
+const sqliteDatetimeFormat = "2006-01-02 15:04:05"
+
+// DefaultMessageQueryLimit is the default number of results returned by QueryMessages.
+const DefaultMessageQueryLimit = 50
+
+// QueryMessages returns messages matching the given filter criteria.
+func (s *Store) QueryMessages(q MessageQuery) ([]*protocol.Message, error) {
+	if q.Limit <= 0 {
+		q.Limit = DefaultMessageQueryLimit
+	}
+
+	// Build WHERE clauses dynamically.
+	where := []string{}
+	args := []interface{}{}
+
+	// Agent filter: messages where the agent is sender, recipient, or in the group.
+	agentClause := `(m.from_agent = ? OR m.to_agent = ? OR (m.grp != '' AND EXISTS (SELECT 1 FROM agent_groups ag WHERE ag.agent_name = ? AND ag.group_name = m.grp)))`
+	where = append(where, agentClause)
+	args = append(args, q.Agent, q.Agent, q.Agent)
+
+	// With filter: direct messages between agent and a specific peer.
+	if q.With != "" {
+		where = append(where, `((m.from_agent = ? AND m.to_agent = ?) OR (m.from_agent = ? AND m.to_agent = ?))`)
+		args = append(args, q.Agent, q.With, q.With, q.Agent)
+	}
+
+	// Group filter: messages in a specific group.
+	if q.Group != "" {
+		where = append(where, `m.grp = ?`)
+		args = append(args, q.Group)
+	}
+
+	// Since filter: messages after this time.
+	if q.Since != "" {
+		t, err := time.Parse(time.RFC3339, q.Since)
+		if err == nil {
+			where = append(where, `m.created_at > ?`)
+			args = append(args, t.UTC().Format(sqliteDatetimeFormat))
+		}
+	}
+
+	// Until filter: messages before this time.
+	if q.Until != "" {
+		t, err := time.Parse(time.RFC3339, q.Until)
+		if err == nil {
+			where = append(where, `m.created_at < ?`)
+			args = append(args, t.UTC().Format(sqliteDatetimeFormat))
+		}
+	}
+
+	query := `SELECT m.id, m.from_agent, m.to_agent, m.grp, m.content, m.in_reply_to, m.created_at FROM messages m`
+	if len(where) > 0 {
+		query += ` WHERE ` + joinStrings(where, " AND ")
+	}
+	query += ` ORDER BY m.created_at DESC LIMIT ?`
+	args = append(args, q.Limit)
+
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("query messages: %w", err)
+	}
+	return scanMessages(rows)
+}
+
+// joinStrings joins a slice of strings with a separator.
+func joinStrings(ss []string, sep string) string {
+	if len(ss) == 0 {
+		return ""
+	}
+	result := ss[0]
+	for _, s := range ss[1:] {
+		result += sep + s
+	}
+	return result
 }

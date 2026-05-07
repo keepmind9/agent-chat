@@ -275,3 +275,7 @@ func TestComputeNextInterval_SmallMaxInterval(t *testing.T) {
 	assert.Equal(t, 2*time.Second, computeNextInterval(2*time.Second, initInterval, maxInterval, multiplier))
 	assert.Equal(t, 2*time.Second, computeNextInterval(4*time.Second, initInterval, maxInterval, multiplier))
 }
+
+func TestHeartbeat_Constant(t *testing.T) {
+	assert.Equal(t, 30*time.Second, heartbeatInterval)
+}
