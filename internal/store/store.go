@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -108,9 +109,10 @@ func (s *Store) RegisterAgent(name string, groups []string) error {
 		return fmt.Errorf("begin tx: %w", err)
 	}
 
+	groupsJSON, _ := json.Marshal(groups)
 	_, err = tx.Exec(
-		"INSERT INTO agents (name, groups, status, registered_at) VALUES (?, '[]', 'idle', ?)",
-		name, time.Now().UTC(),
+		"INSERT INTO agents (name, groups, status, registered_at) VALUES (?, ?, 'idle', ?)",
+		name, string(groupsJSON), time.Now().UTC(),
 	)
 	if err != nil {
 		tx.Rollback()

@@ -68,6 +68,11 @@ func (h *Handler) HandleSend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.To == "" && req.Group == "" {
+		http.Error(w, "either 'to' or 'group' must be specified", http.StatusBadRequest)
+		return
+	}
+
 	msgID, err := h.store.SaveMessage(req.From, req.To, req.Group, req.Content, req.InReplyTo)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

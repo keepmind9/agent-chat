@@ -49,7 +49,7 @@ var mcpCmd = &cobra.Command{
 			client.SetAPIKey(apiKey)
 		}
 
-		s := mcplib.NewMCPServer("agent-chat", "1.0.0")
+		s := mcplib.NewMCPServer("agent-chat", version)
 
 		s.AddTool(mcpmod.BuildRegisterTool(), mcpmod.MakeRegisterHandler(client))
 		s.AddTool(mcpmod.BuildSendMessageTool(), mcpmod.MakeSendMessageHandler(client))

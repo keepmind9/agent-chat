@@ -94,7 +94,7 @@ func (c *WSClient) Run() {
 	}
 }
 
-// jitter adds ±50% randomization to the interval to avoid thundering herd.
+// jitter adds randomization in [d/2, d] (i.e. -50% to 0%) to avoid thundering herd.
 func jitter(d time.Duration) time.Duration {
 	half := d / 2
 	return d - half + time.Duration(rand.Int63n(int64(half)+1))

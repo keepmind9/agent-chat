@@ -77,6 +77,21 @@ func TestHandleSend(t *testing.T) {
 	require.NotEmpty(t, result["id"])
 }
 
+func TestHandleSend_NoRecipient(t *testing.T) {
+	h := setupTestHandler(t)
+
+	sendBody := `{"from":"agent-a","to":"","group":"","content":"hello"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/send", bytes.NewBufferString(sendBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.HandleSend(w, req)
+
+	resp := w.Result()
+	defer resp.Body.Close()
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+}
+
 func TestHandleGetMessages(t *testing.T) {
 	h := setupTestHandler(t)
 
