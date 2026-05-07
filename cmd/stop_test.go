@@ -49,3 +49,25 @@ func TestRunStop_ProcessNotFound(t *testing.T) {
 	_, err = os.Stat(pidPath)
 	require.True(t, os.IsNotExist(err))
 }
+
+func TestParseLogLevel(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string // slog.Level string representation
+	}{
+		{"debug", "DEBUG"},
+		{"info", "INFO"},
+		{"warn", "WARN"},
+		{"warning", "WARN"},
+		{"error", "ERROR"},
+		{"", "INFO"},
+		{"unknown", "INFO"},
+		{"DEBUG", "DEBUG"},
+	}
+	for _, tc := range tests {
+		level := parseLogLevel(tc.input)
+		if level.String() != tc.expected {
+			t.Errorf("parseLogLevel(%q) = %s, want %s", tc.input, level.String(), tc.expected)
+		}
+	}
+}

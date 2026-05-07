@@ -27,6 +27,7 @@ import (
 var WebFS fs.FS
 
 var (
+	logLevel      string
 	serverPort    string
 	dbPath        string
 	retentionDays int
@@ -55,6 +56,7 @@ func init() {
 	serverCmd.Flags().StringVarP(&configPath, "config", "c", "", "path to config file (default ~/.agent-chat/config.yaml)")
 	serverCmd.Flags().StringVar(&serverPort, "port", "8080", "server port")
 	serverCmd.Flags().StringVar(&dbPath, "db", "", "SQLite database path")
+	serverCmd.Flags().StringVar(&logLevel, "log-level", "info", "log level: debug, info, warn, error")
 	serverCmd.Flags().IntVar(&retentionDays, "retention", 30, "message retention period in days (0 to disable)")
 }
 
@@ -65,7 +67,9 @@ func defaultGetDataDir() string {
 }
 
 func runServe() error {
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: parseLogLevel(logLevel),
+	}))
 
 	// Load config file if present
 	cfg, _ := loadConfig(configPath, logger)
@@ -116,6 +120,24 @@ func runServe() error {
 		}()
 	}
 
+	// Periodically expire agents whose last_seen_at is too old.
+	const agentOnlineTTL = 2 * time.Minute
+	go func() {
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
+			expired, err := s.ExpireStaleAgents(agentOnlineTTL)
+			if err != nil {
+				logger.Error("agent expiry scan failed", "error", err)
+			} else if len(expired) > 0 {
+				for _, name := range expired {
+					logger.Info("expired stale agent", "agent", name)
+					hub.PushStatusChange(name, "offline")
+				}
+			}
+		}
+	}()
+
 	h := server.NewHandler(s, hub, logger)
 
 	r := gin.Default()
@@ -148,6 +170,7 @@ func runServe() error {
 	r.GET("/api/agents", gin.WrapF(h.HandleListAgents))
 	r.GET("/api/groups", gin.WrapF(h.HandleListGroups))
 	r.POST("/api/agents/status", gin.WrapF(h.HandleUpdateStatus))
+	r.POST("/api/deregister", gin.WrapF(h.HandleDeregister))
 
 	r.GET("/ws", gin.WrapF(h.HandleWebSocket))
 
@@ -255,6 +278,20 @@ func removePIDFile() {
 	}
 	pidPath := filepath.Join(dataDir, pidFileName)
 	_ = os.Remove(pidPath)
+}
+
+// parseLogLevel converts a string level to slog.Level.
+func parseLogLevel(s string) slog.Level {
+	switch strings.ToLower(s) {
+	case "debug":
+		return slog.LevelDebug
+	case "warn", "warning":
+		return slog.LevelWarn
+	case "error":
+		return slog.LevelError
+	default:
+		return slog.LevelInfo
+	}
 }
 
 func loadConfig(path string, logger *slog.Logger) (*config.Config, error) {
