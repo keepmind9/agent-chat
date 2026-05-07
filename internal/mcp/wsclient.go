@@ -3,6 +3,7 @@ package mcp
 import (
 	"encoding/json"
 	"log/slog"
+	"math/rand"
 	"strings"
 	"sync"
 	"time"
@@ -57,6 +58,13 @@ func (c *WSClient) Connect() error {
 // Run starts the retry loop: Connect -> readLoop -> sleep -> retry.
 // It blocks until Stop is called.
 func (c *WSClient) Run() {
+	const (
+		initInterval = 1 * time.Second
+		maxInterval  = 30 * time.Second
+		multiplier   = 2.0
+	)
+	interval := initInterval
+
 	for {
 		select {
 		case <-c.stopCh:
@@ -65,21 +73,31 @@ func (c *WSClient) Run() {
 		}
 
 		if err := c.Connect(); err != nil {
-			c.logger.Warn("connect error, retrying", "error", err, "retry", "2s")
-			if c.sleepWithStop(2 * time.Second) {
+			c.logger.Warn("connect error, retrying", "error", err, "retry", interval)
+			if c.sleepWithStop(jitter(interval)) {
 				return
 			}
+			interval = min(time.Duration(float64(interval)*multiplier), maxInterval)
 			continue
 		}
 
+		// Reset backoff on successful connection
+		interval = initInterval
 		c.readLoop()
 
 		// Connection lost, wait before retry
-		c.logger.Warn("connection lost, retrying", "retry", "2s")
-		if c.sleepWithStop(2 * time.Second) {
+		c.logger.Warn("connection lost, retrying", "retry", interval)
+		if c.sleepWithStop(jitter(interval)) {
 			return
 		}
+		interval = min(time.Duration(float64(interval)*multiplier), maxInterval)
 	}
+}
+
+// jitter adds ±50% randomization to the interval to avoid thundering herd.
+func jitter(d time.Duration) time.Duration {
+	half := d / 2
+	return d - half + time.Duration(rand.Int63n(int64(half)+1))
 }
 
 // Stop shuts down the WebSocket client. Safe to call multiple times.
