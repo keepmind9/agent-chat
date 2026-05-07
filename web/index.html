@@ -5,136 +5,126 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Agent Chat</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 :root {
-  --bg:          #0F172A;
-  --bg-raised:   #1E293B;
-  --bg-card:     #1B2336;
-  --bg-hover:    #272F42;
-  --border:      #334155;
-  --border-subtle:#2A3548;
-  --text:        #F8FAFC;
-  --text-secondary:#94A3B8;
-  --text-muted:  #64748B;
-  --accent:      #22C55E;
-  --accent-soft: rgba(34,197,94,.12);
-  --accent-mid:  rgba(34,197,94,.25);
-  --indigo:      #818CF8;
-  --indigo-soft: rgba(129,140,248,.1);
-  --cyan:        #22D3EE;
-  --cyan-soft:   rgba(34,211,238,.1);
-  --red:         #F87171;
-  --red-soft:    rgba(248,113,113,.1);
-  --amber:       #FBBF24;
-  --amber-soft:  rgba(251,191,36,.1);
-  --radius:      8px;
-  --radius-lg:   12px;
-  --ease:        .18s cubic-bezier(.4,0,.2,1);
+  --bg:#0A0A0A;
+  --bg-surface:#161616;
+  --bg-elevated:#1E1E1E;
+  --bg-hover:#2A2A2A;
+  --border:#2A2A2A;
+  --border-light:#3A3A3A;
+  --text:#F0F0F0;
+  --text-dim:#AAA;
+  --text-muted:#777;
+  --green:#4ADE80;
+  --green-bg:rgba(74,222,128,.08);
+  --blue:#60A5FA;
+  --blue-bg:rgba(96,165,250,.08);
+  --amber:#FACC15;
+  --amber-bg:rgba(250,204,21,.08);
+  --purple:#C084FC;
+  --red:#F87171;
+  --radius:6px;
+  --font-sans:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,sans-serif;
+  --font-mono:'JetBrains Mono',monospace;
 }
-
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
-button{font-family:inherit}
+body{font-family:var(--font-sans);background:var(--bg);color:var(--text);height:100vh;overflow:hidden}
+button,select{font-family:inherit}
 .app{display:flex;height:100vh}
 
-/* ---- Sidebar ---- */
-.sidebar{width:256px;min-width:256px;background:var(--bg-raised);border-right:1px solid var(--border-subtle);display:flex;flex-direction:column}
-.brand{padding:20px 20px 18px;border-bottom:1px solid var(--border-subtle);display:flex;align-items:center;gap:10px}
-.brand-icon{width:28px;height:28px;background:var(--accent);border-radius:7px;display:flex;align-items:center;justify-content:center}
-.brand-icon svg{width:16px;height:16px;color:#0F172A}
-.brand-text h1{font-size:14px;font-weight:700;color:var(--text);letter-spacing:-.2px;line-height:1}
-.brand-text span{font-size:10px;color:var(--text-muted);font-weight:500;letter-spacing:.3px;margin-top:3px;display:block}
-.sidebar-label{padding:16px 20px 6px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px}
-.agent-list{flex:1;overflow-y:auto;padding:4px 8px 8px}
-.agent-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius);transition:background var(--ease)}
+/* Sidebar */
+.sidebar{width:240px;min-width:240px;background:var(--bg-surface);border-right:1px solid var(--border);display:flex;flex-direction:column}
+.sidebar-head{padding:16px;border-bottom:1px solid var(--border)}
+.sidebar-head h1{font-size:13px;font-weight:700;letter-spacing:-.3px;color:var(--text)}
+.sidebar-head span{font-size:10px;color:var(--text-muted);font-weight:500}
+.sidebar-section{padding:12px 12px 4px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px}
+.agent-list{flex:1;overflow-y:auto;padding:0 8px 8px}
+.agent-item{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:var(--radius);cursor:default;transition:background .12s}
 .agent-item:hover{background:var(--bg-hover)}
-.agent-avatar{width:30px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#fff;flex-shrink:0;text-transform:uppercase;letter-spacing:.3px;position:relative}
-.status-dot{position:absolute;bottom:-2px;right:-2px;width:10px;height:10px;border-radius:50%;border:2.5px solid var(--bg-raised)}
-.status-dot.online{background:var(--accent)}
-.status-dot.offline{background:#475569}
-.status-dot.idle{background:var(--amber)}
-.status-dot.working{background:var(--indigo)}
-.agent-meta{min-width:0;flex:1}
-.agent-name{font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.agent-groups{font-size:11px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.avatar{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:#fff;flex-shrink:0;position:relative;font-family:var(--font-mono)}
+.dot{position:absolute;bottom:-1px;right:-1px;width:8px;height:8px;border-radius:50%;border:2px solid var(--bg-surface)}
+.dot.online{background:var(--green)}.dot.offline{background:#444}.dot.idle{background:var(--amber)}.dot.working{background:var(--blue)}
+.agent-info{min-width:0;flex:1}
+.agent-name{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.agent-groups{font-size:10px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
 
-/* ---- Main ---- */
-.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;background:var(--bg)}
-.topbar{display:flex;align-items:center;gap:12px;padding:14px 24px;border-bottom:1px solid var(--border-subtle)}
-.topbar h2{font-size:16px;font-weight:700;color:var(--text);letter-spacing:-.2px}
-.msg-count{background:var(--accent-soft);color:var(--accent);font-size:11px;font-weight:600;padding:2px 9px;border-radius:10px;min-width:20px;text-align:center}
-.toolbar{display:flex;gap:8px;padding:10px 24px;border-bottom:1px solid var(--border-subtle);align-items:center;flex-wrap:wrap}
-.select{appearance:none;background:var(--bg-raised);color:var(--text);border:1px solid var(--border-subtle);border-radius:var(--radius);padding:6px 30px 6px 11px;font-size:12px;font-weight:500;outline:none;cursor:pointer;transition:border-color var(--ease);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' fill='%2364748B' viewBox='0 0 16 16'%3E%3Cpath d='M8 12L2 5h12z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center}
-.select:focus{border-color:var(--accent)}
-.select option{background:var(--bg-raised);color:var(--text)}
-.btn{display:inline-flex;align-items:center;gap:5px;background:var(--bg-raised);color:var(--text-secondary);border:1px solid var(--border-subtle);border-radius:var(--radius);padding:6px 12px;font-size:12px;font-weight:500;cursor:pointer;transition:all var(--ease)}
+/* Main */
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.topbar{display:flex;align-items:center;gap:10px;padding:12px 20px;border-bottom:1px solid var(--border)}
+.topbar h2{font-size:14px;font-weight:700;letter-spacing:-.2px}
+.badge{background:var(--green-bg);color:var(--green);font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;font-family:var(--font-mono)}
+.toolbar{display:flex;gap:6px;padding:8px 20px;border-bottom:1px solid var(--border);align-items:center;flex-wrap:wrap}
+.sel{appearance:none;background:var(--bg-elevated);color:var(--text);border:1px solid var(--border);border-radius:var(--radius);padding:5px 28px 5px 10px;font-size:11px;outline:none;cursor:pointer;transition:border-color .12s;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' fill='%23777' viewBox='0 0 16 16'%3E%3Cpath d='M8 12L2 5h12z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center}
+.sel:focus{border-color:var(--green)}
+.btn{display:inline-flex;align-items:center;gap:4px;background:var(--bg-elevated);color:var(--text-dim);border:1px solid var(--border);border-radius:var(--radius);padding:5px 10px;font-size:11px;cursor:pointer;transition:all .12s}
 .btn:hover{background:var(--bg-hover);color:var(--text)}
-.btn svg{width:13px;height:13px}
-.ws-status{display:flex;align-items:center;gap:6px;margin-left:auto;font-size:11px;font-weight:500;color:var(--text-muted)}
-.ws-dot{width:7px;height:7px;border-radius:50%}
-.ws-dot.live{background:var(--accent);box-shadow:0 0 8px var(--accent-mid)}
-.ws-dot.off{background:#475569}
+.btn svg{width:12px;height:12px}
+.ws-status{display:flex;align-items:center;gap:5px;margin-left:auto;font-size:10px;color:var(--text-muted);font-weight:500}
+.ws-dot{width:6px;height:6px;border-radius:50%}
+.ws-dot.live{background:var(--green);box-shadow:0 0 6px rgba(74,222,128,.4)}
+.ws-dot.off{background:#444}
+.search-box{background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius);padding:5px 10px;font-size:11px;color:var(--text);outline:none;width:160px;transition:border-color .12s}
+.search-box::placeholder{color:var(--text-muted)}
+.search-box:focus{border-color:var(--green)}
 
-/* ---- Feed ---- */
-.feed{flex:1;overflow-y:auto;padding:16px 24px;display:flex;flex-direction:column;gap:6px}
-.msg{background:var(--bg-card);border:1px solid var(--border-subtle);border-radius:var(--radius-lg);padding:12px 16px;transition:border-color var(--ease),box-shadow var(--ease)}
-.msg:hover{border-color:var(--border);box-shadow:0 2px 8px rgba(0,0,0,.15)}
-.msg.direct{border-left:3px solid var(--indigo)}
-.msg.group{border-left:3px solid var(--cyan)}
-.msg-head{display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:12px;flex-wrap:wrap}
-.msg-from{color:var(--indigo);font-weight:600}
-.msg-to{color:var(--cyan);font-weight:600}
-.msg-group{background:var(--cyan-soft);color:var(--cyan);padding:2px 9px;border-radius:8px;font-weight:600;font-size:11px;letter-spacing:.2px}
-.msg-arrow{color:var(--text-muted);font-size:9px}
-.msg-time{margin-left:auto;color:var(--text-muted);font-size:11px;white-space:nowrap;font-variant-numeric:tabular-nums}
-.msg-body{font-size:13px;line-height:1.6;word-break:break-word;color:var(--text)}
-.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;padding:60px 20px;gap:6px}
-.empty svg{width:40px;height:40px;color:var(--text-muted);opacity:.35;margin-bottom:4px}
-.empty-title{font-size:14px;font-weight:500;color:var(--text-secondary)}
-.empty-desc{font-size:12px;color:var(--text-muted)}
+/* Feed */
+.feed{flex:1;overflow-y:auto;padding:12px 20px;display:flex;flex-direction:column;gap:4px}
+.time-divider{font-size:10px;color:var(--text-muted);font-weight:500;padding:8px 0 4px;border-bottom:1px solid var(--border);margin-bottom:4px;font-family:var(--font-mono)}
+.msg{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;transition:border-color .12s}
+.msg:hover{border-color:var(--border-light)}
+.msg.direct{border-left:2px solid var(--blue)}
+.msg.group{border-left:2px solid var(--green)}
+.msg-head{display:flex;align-items:center;gap:5px;margin-bottom:4px;font-size:11px;flex-wrap:wrap}
+.msg-from{color:var(--blue);font-weight:600}
+.msg-to{color:var(--green);font-weight:600}
+.msg-group-tag{background:var(--green-bg);color:var(--green);padding:1px 7px;border-radius:6px;font-weight:600;font-size:10px}
+.msg-arrow{color:var(--text-muted);font-size:8px}
+.msg-time{margin-left:auto;color:var(--text-muted);font-size:10px;white-space:nowrap;font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.msg-body{font-size:12px;line-height:1.55;word-break:break-word;color:var(--text)}
+.msg-reply{font-size:10px;color:var(--text-muted);font-style:italic;margin-bottom:3px}
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:4px}
+.empty-icon{font-size:28px;color:var(--text-muted);opacity:.3;margin-bottom:4px}
+.empty-title{font-size:13px;font-weight:500;color:var(--text-dim)}
+.empty-desc{font-size:11px;color:var(--text-muted)}
 
-/* ---- Scrollbar ---- */
-::-webkit-scrollbar{width:5px}
+/* Scrollbar */
+::-webkit-scrollbar{width:4px}
 ::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:var(--border-subtle);border-radius:3px}
-::-webkit-scrollbar-thumb:hover{background:var(--border)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+::-webkit-scrollbar-thumb:hover{background:var(--border-light)}
 
-/* ---- Animation ---- */
-@keyframes slideIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
-.msg{animation:slideIn .2s ease}
+/* Animation */
+@keyframes fadeIn{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:translateY(0)}}
+.msg{animation:fadeIn .15s ease}
 
-/* ---- Responsive ---- */
 @media(max-width:768px){
   .sidebar{display:none}
-  .toolbar,.topbar{padding-left:16px;padding-right:16px}
-  .feed{padding:12px 16px}
+  .toolbar,.topbar{padding-left:12px;padding-right:12px}
+  .feed{padding:8px 12px}
+  .search-box{width:100px}
 }
 </style>
 </head>
 <body>
 <div class="app">
   <aside class="sidebar">
-    <div class="brand">
-      <div class="brand-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-      </div>
-      <div class="brand-text">
-        <h1>Agent Chat</h1>
-        <span>Real-time Collaboration</span>
-      </div>
+    <div class="sidebar-head">
+      <h1>Agent Chat</h1>
+      <span>Real-time Collaboration</span>
     </div>
-    <div class="sidebar-label">Agents</div>
+    <div class="sidebar-section">Agents</div>
     <div class="agent-list" id="agentList"></div>
   </aside>
   <div class="main">
     <div class="topbar">
       <h2>Messages</h2>
-      <span class="msg-count" id="msgCount">0</span>
+      <span class="badge" id="msgCount">0</span>
     </div>
     <div class="toolbar">
-      <select class="select" id="agentFilter"><option value="">All Agents</option></select>
-      <select class="select" id="groupFilter"><option value="">All Groups</option></select>
+      <select class="sel" id="agentFilter"><option value="">All Agents</option></select>
+      <select class="sel" id="groupFilter"><option value="">All Groups</option></select>
+      <input type="text" class="search-box" id="searchBox" placeholder="Search messages...">
       <button class="btn" id="refreshBtn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
         Refresh
@@ -147,152 +137,102 @@ button{font-family:inherit}
     <div class="feed" id="messageFeed"></div>
   </div>
 </div>
-
 <script>
-(function() {
+(function(){
   'use strict';
+  var agentListEl=document.getElementById('agentList'),
+      messageFeedEl=document.getElementById('messageFeed'),
+      agentFilterEl=document.getElementById('agentFilter'),
+      groupFilterEl=document.getElementById('groupFilter'),
+      searchBox=document.getElementById('searchBox'),
+      refreshBtn=document.getElementById('refreshBtn'),
+      wsDot=document.getElementById('wsDot'),
+      wsLabel=document.getElementById('wsLabel'),
+      msgCountEl=document.getElementById('msgCount');
+  var cachedAgents=[],cachedGroups=[],cachedMessages=[],ws=null,wsDelay=1000;
+  var COLORS=['#6366F1','#8B5CF6','#EC4899','#F43F5E','#F97316','#EAB308','#22C55E','#14B8A6','#06B6D4','#3B82F6','#A855F7','#D946EF'];
+  function pickColor(s){var h=0;for(var i=0;i<s.length;i++)h=s.charCodeAt(i)+((h<<5)-h);return COLORS[Math.abs(h)%COLORS.length]}
+  function initials(n){if(!n)return'?';var p=n.split(/[-_\s.]+/);return p.length>=2?(p[0][0]+p[1][0]).toUpperCase():n.slice(0,2).toUpperCase()}
+  function fetchJSON(u){return fetch(u).then(function(r){return r.ok?r.json():Promise.reject(r.status)})}
+  function esc(s){if(!s)return'';var d=document.createElement('div');d.appendChild(document.createTextNode(s));return d.innerHTML}
 
-  var agentListEl = document.getElementById('agentList');
-  var messageFeedEl = document.getElementById('messageFeed');
-  var agentFilterEl = document.getElementById('agentFilter');
-  var groupFilterEl = document.getElementById('groupFilter');
-  var refreshBtn = document.getElementById('refreshBtn');
-  var wsDot = document.getElementById('wsDot');
-  var wsLabel = document.getElementById('wsLabel');
-  var msgCountEl = document.getElementById('msgCount');
-
-  var cachedAgents = [];
-  var cachedGroups = [];
-  var cachedMessages = [];
-  var ws = null;
-  var wsReconnectDelay = 1000;
-
-  var COLORS = ['#6366F1','#8B5CF6','#EC4899','#F43F5E','#F97316','#EAB308','#22C55E','#14B8A6','#06B6D4','#3B82F6','#A855F7','#D946EF'];
-
-  function pickColor(s) {
-    var h = 0;
-    for (var i = 0; i < s.length; i++) h = s.charCodeAt(i) + ((h << 5) - h);
-    return COLORS[Math.abs(h) % COLORS.length];
+  function loadAgents(){
+    fetchJSON('/api/agents').then(function(a){
+      cachedAgents=a||[];renderAgents();
+      populateFilter(agentFilterEl,cachedAgents.map(function(x){return x.name}),'All Agents');
+    }).catch(function(){})
   }
-
-  function initials(n) {
-    if (!n) return '?';
-    var p = n.split(/[-_\s.]+/);
-    return p.length >= 2 ? (p[0][0] + p[1][0]).toUpperCase() : n.slice(0, 2).toUpperCase();
+  function renderAgents(){
+    var on=[],off=[];
+    cachedAgents.forEach(function(a){(a.status==='offline'?off:on).push(a)});
+    var list=on.concat(off);
+    if(!list.length){agentListEl.innerHTML='<div class="empty"><div class="empty-icon">&#x1F916;</div><div class="empty-title">No agents yet</div><div class="empty-desc">Agents appear when they connect</div></div>';return}
+    agentListEl.innerHTML=list.map(function(a){
+      var sc=a.status==='offline'?'offline':a.status==='working'?'working':a.status==='idle'?'idle':'online';
+      var g=(a.groups||[]).join(', ');
+      return '<div class="agent-item"><div class="avatar" style="background:'+pickColor(a.name)+'">'+initials(a.name)+'<span class="dot '+sc+'"></span></div><div class="agent-info"><div class="agent-name">'+esc(a.name)+'</div>'+(g?'<div class="agent-groups">'+esc(g)+'</div>':'')+'</div></div>';
+    }).join('')
   }
-
-  function fetchJSON(url) {
-    return fetch(url).then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); });
+  function populateFilter(el,items,allLabel){
+    var v=el.value;
+    el.innerHTML='<option value="">'+allLabel+'</option>'+items.map(function(x){return'<option value="'+esc(x)+'">'+esc(x)+'</option>'}).join('');
+    el.value=v
   }
-
-  // Agents
-  function loadAgents() {
-    fetchJSON('/api/agents').then(function(a) {
-      cachedAgents = a || [];
-      renderAgents();
-      populateFilter(agentFilterEl, cachedAgents.map(function(x){return x.name}), 'All Agents');
-    }).catch(function(){});
+  function loadGroups(){
+    fetchJSON('/api/groups').then(function(g){cachedGroups=g||[];populateFilter(groupFilterEl,cachedGroups,'All Groups')}).catch(function(){})
   }
-
-  function renderAgents() {
-    var online = [], offline = [];
-    cachedAgents.forEach(function(a) {
-      (a.status === 'offline' ? offline : online).push(a);
-    });
-    var list = online.concat(offline);
-    if (!list.length) {
-      agentListEl.innerHTML = '<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M8 15s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg><div class="empty-title">No agents yet</div><div class="empty-desc">Agents appear when they connect</div></div>';
-      return;
-    }
-    agentListEl.innerHTML = list.map(function(a) {
-      var sc = a.status === 'offline' ? 'offline' : a.status === 'working' ? 'working' : a.status === 'idle' ? 'idle' : 'online';
-      var g = (a.groups||[]).join(', ');
-      return '<div class="agent-item">' +
-        '<div class="agent-avatar" style="background:'+pickColor(a.name)+'">' + initials(a.name) +
-          '<span class="status-dot '+sc+'"></span></div>' +
-        '<div class="agent-meta"><div class="agent-name">'+esc(a.name)+'</div>' +
-        (g ? '<div class="agent-groups">'+esc(g)+'</div>' : '') +
-        '</div></div>';
-    }).join('');
+  function loadMessages(){
+    fetchJSON('/api/messages/recent').then(function(m){cachedMessages=m||[];renderMessages()}).catch(function(){})
   }
-
-  function populateFilter(el, items, allLabel) {
-    var v = el.value;
-    el.innerHTML = '<option value="">'+allLabel+'</option>' + items.map(function(x){return '<option value="'+esc(x)+'">'+esc(x)+'</option>';}).join('');
-    el.value = v;
-  }
-
-  // Groups
-  function loadGroups() {
-    fetchJSON('/api/groups').then(function(g) {
-      cachedGroups = g || [];
-      populateFilter(groupFilterEl, cachedGroups, 'All Groups');
-    }).catch(function(){});
-  }
-
-  // Messages
-  function loadMessages() {
-    fetchJSON('/api/messages/recent').then(function(m) {
-      cachedMessages = m || [];
-      renderMessages();
-    }).catch(function(){});
-  }
-
-  function renderMessages() {
-    var av = agentFilterEl.value, gv = groupFilterEl.value;
-    var list = cachedMessages.filter(function(m) {
-      if (av && m.from_agent !== av && m.to_agent !== av) return false;
-      if (gv && m.group !== gv) return false;
-      return true;
-    });
-    msgCountEl.textContent = list.length;
-
-    if (!list.length) {
-      messageFeedEl.innerHTML = '<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><div class="empty-title">No messages</div><div class="empty-desc">Messages appear here in real time</div></div>';
-      return;
-    }
-
-    messageFeedEl.innerHTML = list.map(function(m) {
-      var ig = !!m.group, cls = ig ? 'group' : 'direct';
-      var to = ig ? '<span class="msg-group">'+esc(m.group)+'</span>' : '<span class="msg-to">'+esc(m.to_agent)+'</span>';
-      return '<div class="msg '+cls+'"><div class="msg-head">' +
-        '<span class="msg-from">'+esc(m.from_agent)+'</span>' +
-        '<span class="msg-arrow">&#10140;</span>' + to +
-        '<span class="msg-time">'+esc(fmtTime(m.created_at))+'</span>' +
-        '</div><div class="msg-body">'+esc(m.content)+'</div></div>';
-    }).join('');
-  }
-
-  // WebSocket
-  function connectWS() {
-    var p = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    ws = new WebSocket(p + '//' + location.host + '/ws?agent=__web_dashboard');
-    ws.onopen = function() { wsDot.className='ws-dot live'; wsLabel.textContent='Live'; wsReconnectDelay=1000; };
-    ws.onmessage = function(e) {
-      try { var m=JSON.parse(e.data); if(m.type==='new_message')loadMessages(); else if(m.type==='agent_status')loadAgents(); } catch(x){}
-    };
-    ws.onclose = function() { wsDot.className='ws-dot off'; wsLabel.textContent='Offline'; setTimeout(function(){wsReconnectDelay=Math.min(wsReconnectDelay*2,30000);connectWS();},wsReconnectDelay); };
-    ws.onerror = function(){};
-  }
-
-  // Helpers
-  function esc(s) { if(!s)return''; var d=document.createElement('div'); d.appendChild(document.createTextNode(s)); return d.innerHTML; }
-  function fmtTime(ts) {
-    if(!ts)return''; var d=new Date(ts); if(isNaN(d.getTime()))return ts;
-    var hh=String(d.getHours()).padStart(2,'0'), mm=String(d.getMinutes()).padStart(2,'0');
+  function fmtTime(ts){
+    if(!ts)return'';var d=new Date(ts);if(isNaN(d.getTime()))return ts;
+    var hh=String(d.getHours()).padStart(2,'0'),mm=String(d.getMinutes()).padStart(2,'0');
     var now=new Date();
-    if(d.toDateString()===now.toDateString()) return hh+':'+mm;
-    return String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0')+' '+hh+':'+mm;
+    if(d.toDateString()===now.toDateString())return hh+':'+mm;
+    return String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0')+' '+hh+':'+mm
+  }
+  function dateKey(ts){var d=new Date(ts);if(isNaN(d.getTime()))return'';var now=new Date();if(d.toDateString()===now.toDateString())return'Today';return d.toLocaleDateString('en-US',{month:'short',day:'numeric'})}
+
+  function renderMessages(){
+    var av=agentFilterEl.value,gv=groupFilterEl.value,q=searchBox.value.toLowerCase();
+    var list=cachedMessages.filter(function(m){
+      if(av&&m.from_agent!==av&&m.to_agent!==av)return false;
+      if(gv&&m.group!==gv)return false;
+      if(q&&m.content.toLowerCase().indexOf(q)===-1&&m.from_agent.toLowerCase().indexOf(q)===-1)return false;
+      return true
+    });
+    msgCountEl.textContent=list.length;
+    if(!list.length){
+      messageFeedEl.innerHTML='<div class="empty"><div class="empty-icon">&#x1F4AC;</div><div class="empty-title">No messages</div><div class="empty-desc">Messages appear here in real time</div></div>';
+      return
+    }
+    var html='',lastDate='';
+    list.forEach(function(m){
+      var dk=dateKey(m.created_at);
+      if(dk&&dk!==lastDate){html+='<div class="time-divider">'+esc(dk)+'</div>';lastDate=dk}
+      var ig=!!m.group,cls=ig?'group':'direct';
+      var to=ig?'<span class="msg-group-tag">'+esc(m.group)+'</span>':'<span class="msg-to">'+esc(m.to_agent)+'</span>';
+      var reply=m.in_reply_to?'<div class="msg-reply">reply to '+esc(m.in_reply_to)+'</div>':'';
+      html+='<div class="msg '+cls+'"><div class="msg-head"><span class="msg-from">'+esc(m.from_agent)+'</span><span class="msg-arrow">&#x2192;</span>'+to+'<span class="msg-time">'+esc(fmtTime(m.created_at))+'</span></div>'+reply+'<div class="msg-body">'+esc(m.content)+'</div></div>';
+    });
+    messageFeedEl.innerHTML=html
   }
 
-  // Events
-  refreshBtn.addEventListener('click', function(){ loadAgents(); loadGroups(); loadMessages(); });
-  agentFilterEl.addEventListener('change', renderMessages);
-  groupFilterEl.addEventListener('change', renderMessages);
+  function connectWS(){
+    var p=location.protocol==='https:'?'wss:':'ws:';
+    ws=new WebSocket(p+'//'+location.host+'/ws?agent=__web_dashboard');
+    ws.onopen=function(){wsDot.className='ws-dot live';wsLabel.textContent='Live';wsDelay=1000};
+    ws.onmessage=function(e){try{var m=JSON.parse(e.data);if(m.type==='new_message')loadMessages();else if(m.type==='agent_status')loadAgents()}catch(x){}};
+    ws.onclose=function(){wsDot.className='ws-dot off';wsLabel.textContent='Offline';setTimeout(function(){wsDelay=Math.min(wsDelay*2,30000);connectWS()},wsDelay)};
+    ws.onerror=function(){}
+  }
 
-  // Init
-  loadAgents(); loadGroups(); loadMessages(); connectWS();
-  setInterval(loadAgents, 10000);
+  refreshBtn.addEventListener('click',function(){loadAgents();loadGroups();loadMessages()});
+  agentFilterEl.addEventListener('change',renderMessages);
+  groupFilterEl.addEventListener('change',renderMessages);
+  searchBox.addEventListener('input',renderMessages);
+  loadAgents();loadGroups();loadMessages();connectWS();
+  setInterval(loadAgents,10000);
 })();
 </script>
 </body>
