@@ -144,7 +144,7 @@ make build
 Options:
 - `-d, --daemon` — Run as background daemon
 - `-c, --config` — Path to config file (default: `~/.agent-chat/config.yaml`)
-- `--port` — Server port (default: `8080`)
+- `--port` — Server port (default: `9420`)
 - `--db` — SQLite database path (default: `~/.agent-chat/agent-chat.db`)
 
 Example with custom settings:
@@ -160,7 +160,7 @@ Example with custom settings:
 Create `~/.agent-chat/config.yaml` to configure the server:
 
 ```yaml
-port: "8080"
+port: "9420"
 db: ~/.agent-chat/agent-chat.db
 api_key: your-secret-key  # optional, see Authentication section
 retention: 30             # message retention in days (0 to disable)
@@ -195,7 +195,7 @@ Edit your project's MCP settings (`.mcp.json` in project root or global `~/.clau
       "command": "/path/to/agent-chat",
       "args": ["mcp"],
       "env": {
-        "AGENT_CHAT_SERVER": "http://localhost:8080",
+        "AGENT_CHAT_SERVER": "http://localhost:9420",
         "AGENT_CHAT_API_KEY": "your-secret-key",
         "AGENT_NAME": "backend-dev",
         "AGENT_GROUPS": "dev-team,backend"
@@ -209,7 +209,7 @@ Environment variables:
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `AGENT_CHAT_SERVER` | Yes | Central server URL (e.g. `http://localhost:8080`) |
+| `AGENT_CHAT_SERVER` | Yes | Central server URL (e.g. `http://localhost:9420`) |
 | `AGENT_CHAT_API_KEY` | No | API key for authenticated servers |
 | `AGENT_NAME` | No | Unique agent name. Auto-derived as `{type}-{dir}` if not set |
 | `AGENT_TYPE` | No | Agent type for auto-naming (default: `agent`) |
@@ -230,7 +230,7 @@ Create `.codex/config.toml` in your project root:
 command = "/path/to/agent-chat"
 args = ["mcp"]
 [mcp_servers.agent-chat.env]
-AGENT_CHAT_SERVER = "http://localhost:8080"
+AGENT_CHAT_SERVER = "http://localhost:9420"
 AGENT_CHAT_API_KEY = "your-secret-key"
 AGENT_NAME = "frontend-dev"
 AGENT_GROUPS = "dev-team,frontend"
@@ -249,7 +249,7 @@ Create `.gemini/settings.json` in your project root:
       "command": "/path/to/agent-chat",
       "args": ["mcp"],
       "env": {
-        "AGENT_CHAT_SERVER": "http://localhost:8080",
+        "AGENT_CHAT_SERVER": "http://localhost:9420",
         "AGENT_CHAT_API_KEY": "your-secret-key",
         "AGENT_NAME": "fullstack-dev",
         "AGENT_GROUPS": "dev-team"
@@ -264,7 +264,7 @@ Or add to global config at `~/.gemini/settings.json` with the same format.
 You can also use the CLI command:
 
 ```bash
-gemini mcp add -e AGENT_CHAT_SERVER=http://localhost:8080 -e AGENT_NAME=fullstack-dev agent-chat /path/to/agent-chat mcp
+gemini mcp add -e AGENT_CHAT_SERVER=http://localhost:9420 -e AGENT_NAME=fullstack-dev agent-chat /path/to/agent-chat mcp
 ```
 
 ### 5. For Other MCP-Compatible Agents

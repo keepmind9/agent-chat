@@ -27,11 +27,12 @@ import (
 var WebFS fs.FS
 
 var (
-	logLevel      string
-	serverPort    string
-	dbPath        string
-	retentionDays int
-	pidFileName   = "agent-chat.pid"
+	logLevel          string
+	serverPort        string
+	dbPath            string
+	retentionDays     int
+	pidFileName       = "agent-chat.pid"
+	defaultServerPort = "9420"
 )
 
 var serverCmd = &cobra.Command{
@@ -54,7 +55,7 @@ func init() {
 	rootCmd.AddCommand(newStopCmd())
 	serverCmd.Flags().BoolVarP(&asDaemon, "daemon", "d", false, "run as background daemon")
 	serverCmd.Flags().StringVarP(&configPath, "config", "c", "", "path to config file (default ~/.agent-chat/config.yaml)")
-	serverCmd.Flags().StringVar(&serverPort, "port", "8080", "server port")
+	serverCmd.Flags().StringVar(&serverPort, "port", defaultServerPort, "server port")
 	serverCmd.Flags().StringVar(&dbPath, "db", "", "SQLite database path")
 	serverCmd.Flags().StringVar(&logLevel, "log-level", "info", "log level: debug, info, warn, error")
 	serverCmd.Flags().IntVar(&retentionDays, "retention", 30, "message retention period in days (0 to disable)")
@@ -75,7 +76,7 @@ func runServe() error {
 	cfg, _ := loadConfig(configPath, logger)
 
 	if cfg != nil {
-		if serverPort == "8080" && cfg.Port != "" {
+		if serverPort == defaultServerPort && cfg.Port != "" {
 			serverPort = cfg.Port
 		}
 		if dbPath == "" && cfg.DB != "" {

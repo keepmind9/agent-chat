@@ -138,7 +138,7 @@ make build
 参数：
 - `-d, --daemon` — 后台 daemon 模式运行
 - `-c, --config` — 配置文件路径（默认：`~/.agent-chat/config.yaml`）
-- `--port` — 服务端口（默认：`8080`）
+- `--port` — 服务端口（默认：`9420`）
 - `--db` — SQLite 数据库路径（默认：`~/.agent-chat/agent-chat.db`）
 
 自定义示例：
@@ -154,7 +154,7 @@ make build
 创建 `~/.agent-chat/config.yaml` 来配置服务器：
 
 ```yaml
-port: "8080"
+port: "9420"
 db: ~/.agent-chat/agent-chat.db
 api_key: your-secret-key  # 可选，参见认证部分
 retention: 30             # 消息保留天数（0 为禁用）
@@ -189,7 +189,7 @@ Server 暴露（`{port}` 替换为你配置的端口）：
       "command": "/path/to/agent-chat",
       "args": ["mcp"],
       "env": {
-        "AGENT_CHAT_SERVER": "http://localhost:8080",
+        "AGENT_CHAT_SERVER": "http://localhost:9420",
         "AGENT_NAME": "backend-dev",
         "AGENT_GROUPS": "dev-team,backend"
       }
@@ -202,7 +202,7 @@ Server 暴露（`{port}` 替换为你配置的端口）：
 
 | 变量 | 必填 | 说明 |
 |------|------|------|
-| `AGENT_CHAT_SERVER` | 是 | Central Server URL（如 `http://localhost:8080`） |
+| `AGENT_CHAT_SERVER` | 是 | Central Server URL（如 `http://localhost:9420`） |
 | `AGENT_CHAT_API_KEY` | 否 | 服务器配置了 api_key 时需要填入 |
 | `AGENT_NAME` | 否 | 唯一 Agent 名称。不设置则自动推导为 `{type}-{dir}` |
 | `AGENT_TYPE` | 否 | 自动命名的 Agent 类型（默认：`agent`） |
@@ -223,7 +223,7 @@ Claude Code 启动时会自动启动 MCP plugin，它会：
 command = "/path/to/agent-chat"
 args = ["mcp"]
 [mcp_servers.agent-chat.env]
-AGENT_CHAT_SERVER = "http://localhost:8080"
+AGENT_CHAT_SERVER = "http://localhost:9420"
 AGENT_NAME = "frontend-dev"
 AGENT_GROUPS = "dev-team,frontend"
 ```
@@ -241,7 +241,7 @@ AGENT_GROUPS = "dev-team,frontend"
       "command": "/path/to/agent-chat",
       "args": ["mcp"],
       "env": {
-        "AGENT_CHAT_SERVER": "http://localhost:8080",
+        "AGENT_CHAT_SERVER": "http://localhost:9420",
         "AGENT_NAME": "fullstack-dev",
         "AGENT_GROUPS": "dev-team"
       }
@@ -255,7 +255,7 @@ AGENT_GROUPS = "dev-team,frontend"
 也可以使用 CLI 命令：
 
 ```bash
-gemini mcp add -e AGENT_CHAT_SERVER=http://localhost:8080 -e AGENT_NAME=fullstack-dev agent-chat /path/to/agent-chat mcp
+gemini mcp add -e AGENT_CHAT_SERVER=http://localhost:9420 -e AGENT_NAME=fullstack-dev agent-chat /path/to/agent-chat mcp
 ```
 
 ### 5. 其他 MCP 兼容 Agent
