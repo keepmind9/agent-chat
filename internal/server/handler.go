@@ -264,6 +264,28 @@ func (h *Handler) HandleUpdateStatus(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
+// HandleDeregister removes an agent and its group memberships.
+func (h *Handler) HandleDeregister(w http.ResponseWriter, r *http.Request) {
+	var req protocol.DeregisterRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.AgentName == "" {
+		http.Error(w, "agent_name is required", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.store.DeregisterAgent(req.AgentName); err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	h.hub.Unregister(req.AgentName)
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
 // writeJSON encodes v as JSON and writes it to w with the given status code.
 func writeJSON(w http.ResponseWriter, status int, v interface{}) {
 	w.Header().Set("Content-Type", "application/json")

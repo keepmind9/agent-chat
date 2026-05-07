@@ -44,13 +44,15 @@ func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	ch := make(chan []byte, wsChannelBuf)
 	h.hub.Register(agent, ch)
 
-	// Set agent status to online.
+	// Set agent status to online and touch last_seen_at.
 	_ = h.store.SetAgentStatus(agent, "online")
+	_ = h.store.TouchAgent(agent)
 
 	// Set initial read deadline for pong detection.
 	conn.SetReadDeadline(time.Now().Add(pongWait))
 	conn.SetPongHandler(func(string) error {
 		conn.SetReadDeadline(time.Now().Add(pongWait))
+		_ = h.store.TouchAgent(agent)
 		return nil
 	})
 

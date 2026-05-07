@@ -21,6 +21,7 @@ type Agent struct {
 	Groups       []string  `json:"groups"`
 	Status       string    `json:"status"`
 	RegisteredAt time.Time `json:"registered_at"`
+	LastSeenAt   time.Time `json:"last_seen_at"`
 }
 
 // MessageRead tracks which agents have read which messages.
@@ -61,4 +62,9 @@ type ReadRequest struct {
 type UpdateStatusRequest struct {
 	AgentName string `json:"agent_name"`
 	Status    string `json:"status"` // "idle" or "working"
+}
+
+// DeregisterRequest is the payload for removing an agent.
+type DeregisterRequest struct {
+	AgentName string `json:"agent_name"`
 }
