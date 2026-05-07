@@ -33,14 +33,19 @@ func TestRegisterAndGetAgent(t *testing.T) {
 	assert.False(t, agent.RegisteredAt.IsZero())
 }
 
-func TestRegisterAgentDuplicate(t *testing.T) {
+func TestRegisterAgentIdempotent(t *testing.T) {
 	s := openTestStore(t)
 
 	err := s.RegisterAgent("agent-a", []string{"dev"})
 	require.NoError(t, err)
 
-	err = s.RegisterAgent("agent-a", []string{"dev"})
-	assert.Error(t, err)
+	// Re-register with different groups should succeed (upsert).
+	err = s.RegisterAgent("agent-a", []string{"dev", "ops"})
+	require.NoError(t, err)
+
+	agent, err := s.GetAgent("agent-a")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"dev", "ops"}, agent.Groups)
 }
 
 func TestSaveAndGetDirectMessage(t *testing.T) {
@@ -253,4 +258,89 @@ func TestDeleteOldMessagesZeroRetention(t *testing.T) {
 	deleted, err := s.DeleteOldMessages(context.Background(), 0)
 	require.NoError(t, err)
 	assert.Equal(t, int64(0), deleted)
+}
+
+func TestTouchAgent(t *testing.T) {
+	s := openTestStore(t)
+
+	require.NoError(t, s.RegisterAgent("agent-a", nil))
+
+	agent, err := s.GetAgent("agent-a")
+	require.NoError(t, err)
+	initial := agent.LastSeenAt
+
+	// Wait briefly so the timestamp differs.
+	time.Sleep(10 * time.Millisecond)
+	require.NoError(t, s.TouchAgent("agent-a"))
+
+	agent, err = s.GetAgent("agent-a")
+	require.NoError(t, err)
+	assert.True(t, agent.LastSeenAt.After(initial), "last_seen_at should be updated")
+}
+
+func TestExpireStaleAgents(t *testing.T) {
+	s := openTestStore(t)
+
+	require.NoError(t, s.RegisterAgent("agent-a", nil))
+	require.NoError(t, s.RegisterAgent("agent-b", nil))
+
+	// Backdate agent-a's last_seen_at.
+	_, err := s.db.Exec(
+		"UPDATE agents SET last_seen_at = ? WHERE name = ?",
+		time.Now().UTC().Add(-5*time.Minute), "agent-a",
+	)
+	require.NoError(t, err)
+
+	expired, err := s.ExpireStaleAgents(2 * time.Minute)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"agent-a"}, expired)
+
+	agent, err := s.GetAgent("agent-a")
+	require.NoError(t, err)
+	assert.Equal(t, "offline", agent.Status)
+
+	agent, err = s.GetAgent("agent-b")
+	require.NoError(t, err)
+	assert.Equal(t, "idle", agent.Status)
+}
+
+func TestExpireStaleAgentsNoneExpired(t *testing.T) {
+	s := openTestStore(t)
+
+	require.NoError(t, s.RegisterAgent("agent-a", nil))
+
+	expired, err := s.ExpireStaleAgents(2 * time.Minute)
+	require.NoError(t, err)
+	assert.Len(t, expired, 0)
+}
+
+func TestDeregisterAgent(t *testing.T) {
+	s := openTestStore(t)
+
+	require.NoError(t, s.RegisterAgent("agent-a", []string{"dev", "ops"}))
+	require.NoError(t, s.RegisterAgent("agent-b", []string{"dev"}))
+
+	err := s.DeregisterAgent("agent-a")
+	require.NoError(t, err)
+
+	// agent-a should be gone.
+	_, err = s.GetAgent("agent-a")
+	assert.Error(t, err)
+
+	// agent-a's groups should be gone.
+	members, err := s.GetGroupMembers("ops")
+	require.NoError(t, err)
+	assert.Len(t, members, 0)
+
+	// agent-b should still be in dev.
+	members, err = s.GetGroupMembers("dev")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"agent-b"}, members)
+}
+
+func TestDeregisterAgentNotFound(t *testing.T) {
+	s := openTestStore(t)
+
+	err := s.DeregisterAgent("nonexistent")
+	assert.Error(t, err)
 }

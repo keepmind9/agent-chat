@@ -58,7 +58,8 @@ func migrate(db *sql.DB) error {
 		name         TEXT PRIMARY KEY,
 		groups       TEXT NOT NULL DEFAULT '[]',
 		status       TEXT NOT NULL DEFAULT 'online',
-		registered_at DATETIME NOT NULL DEFAULT (datetime('now'))
+		registered_at DATETIME NOT NULL DEFAULT (datetime('now')),
+		last_seen_at  DATETIME NOT NULL DEFAULT (datetime('now'))
 	);
 	CREATE TABLE IF NOT EXISTS messages (
 		id          TEXT PRIMARY KEY,
@@ -86,6 +87,22 @@ func migrate(db *sql.DB) error {
 		return err
 	}
 
+	// One-time migration: add last_seen_at column if missing (upgrade from older schema).
+	var colCount int
+	if err := db.QueryRow("SELECT COUNT(*) FROM pragma_table_info('agents') WHERE name='last_seen_at'").Scan(&colCount); err != nil {
+		return err
+	}
+	if colCount == 0 {
+		// SQLite does not allow non-constant defaults in ALTER TABLE, so add without default
+		// then backfill from registered_at.
+		if _, err := db.Exec("ALTER TABLE agents ADD COLUMN last_seen_at DATETIME"); err != nil {
+			return err
+		}
+		if _, err := db.Exec("UPDATE agents SET last_seen_at = registered_at WHERE last_seen_at IS NULL"); err != nil {
+			return err
+		}
+	}
+
 	// One-time migration: copy group data from legacy JSON column to agent_groups.
 	var count int
 	if err := db.QueryRow("SELECT COUNT(*) FROM agent_groups").Scan(&count); err != nil {
@@ -102,17 +119,19 @@ func migrate(db *sql.DB) error {
 	return nil
 }
 
-// RegisterAgent inserts a new agent and its group memberships.
+// RegisterAgent creates or updates an agent and its group memberships.
+// Re-registering an existing agent updates its groups and refreshes registered_at.
 func (s *Store) RegisterAgent(name string, groups []string) error {
 	tx, err := s.db.Begin()
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
 
+	now := time.Now().UTC()
 	groupsJSON, _ := json.Marshal(groups)
 	_, err = tx.Exec(
-		"INSERT INTO agents (name, groups, status, registered_at) VALUES (?, ?, 'idle', ?)",
-		name, string(groupsJSON), time.Now().UTC(),
+		"INSERT OR REPLACE INTO agents (name, groups, status, registered_at, last_seen_at) VALUES (?, ?, 'idle', ?, ?)",
+		name, string(groupsJSON), now, now,
 	)
 	if err != nil {
 		tx.Rollback()
@@ -148,7 +167,7 @@ func syncAgentGroups(tx *sql.Tx, agentName string, groups []string) error {
 // GetAgent retrieves an agent by name.
 func (s *Store) GetAgent(name string) (*protocol.Agent, error) {
 	row := s.db.QueryRow(`
-		SELECT a.name, a.status, a.registered_at, GROUP_CONCAT(ag.group_name)
+		SELECT a.name, a.status, a.registered_at, GROUP_CONCAT(ag.group_name), a.last_seen_at
 		FROM agents a
 		LEFT JOIN agent_groups ag ON a.name = ag.agent_name
 		WHERE a.name = ?
@@ -161,7 +180,7 @@ func (s *Store) GetAgent(name string) (*protocol.Agent, error) {
 func scanAgentWithGroups(row *sql.Row) (*protocol.Agent, error) {
 	var a protocol.Agent
 	var groupsStr sql.NullString
-	err := row.Scan(&a.Name, &a.Status, &a.RegisteredAt, &groupsStr)
+	err := row.Scan(&a.Name, &a.Status, &a.RegisteredAt, &groupsStr, &a.LastSeenAt)
 	if err != nil {
 		return nil, fmt.Errorf("scan agent: %w", err)
 	}
@@ -194,7 +213,7 @@ func (s *Store) SetAgentStatus(name, status string) error {
 // ListAgents returns all registered agents.
 func (s *Store) ListAgents() ([]*protocol.Agent, error) {
 	rows, err := s.db.Query(`
-		SELECT a.name, a.status, a.registered_at, GROUP_CONCAT(ag.group_name)
+		SELECT a.name, a.status, a.registered_at, GROUP_CONCAT(ag.group_name), a.last_seen_at
 		FROM agents a
 		LEFT JOIN agent_groups ag ON a.name = ag.agent_name
 		GROUP BY a.name
@@ -208,7 +227,7 @@ func (s *Store) ListAgents() ([]*protocol.Agent, error) {
 	for rows.Next() {
 		var a protocol.Agent
 		var groupsStr sql.NullString
-		if err := rows.Scan(&a.Name, &a.Status, &a.RegisteredAt, &groupsStr); err != nil {
+		if err := rows.Scan(&a.Name, &a.Status, &a.RegisteredAt, &groupsStr, &a.LastSeenAt); err != nil {
 			return nil, fmt.Errorf("scan agent: %w", err)
 		}
 		a.Groups = splitGroups(groupsStr)
@@ -373,6 +392,73 @@ func (s *Store) GetRecentMessages(limit int) ([]*protocol.Message, error) {
 		return nil, fmt.Errorf("query recent: %w", err)
 	}
 	return scanMessages(rows)
+}
+
+// TouchAgent updates last_seen_at for an agent to the current time.
+func (s *Store) TouchAgent(name string) error {
+	_, err := s.db.Exec(
+		"UPDATE agents SET last_seen_at = ? WHERE name = ?",
+		time.Now().UTC(), name,
+	)
+	return err
+}
+
+// ExpireStaleAgents sets agents to "offline" if their last_seen_at is older than ttl.
+// Returns the names of agents that were expired.
+func (s *Store) ExpireStaleAgents(ttl time.Duration) ([]string, error) {
+	cutoff := time.Now().UTC().Add(-ttl)
+	rows, err := s.db.Query(
+		"SELECT name FROM agents WHERE status != 'offline' AND last_seen_at < ?",
+		cutoff,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("query stale agents: %w", err)
+	}
+	defer rows.Close()
+
+	var expired []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, fmt.Errorf("scan stale agent: %w", err)
+		}
+		expired = append(expired, name)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	for _, name := range expired {
+		if err := s.SetAgentStatus(name, "offline"); err != nil {
+			// Agent may have been deleted between query and update.
+			continue
+		}
+	}
+	return expired, nil
+}
+
+// DeregisterAgent removes an agent and its group memberships.
+func (s *Store) DeregisterAgent(name string) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	_, err = tx.Exec("DELETE FROM agent_groups WHERE agent_name = ?", name)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("delete agent groups: %w", err)
+	}
+	res, err := tx.Exec("DELETE FROM agents WHERE name = ?", name)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("delete agent: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		tx.Rollback()
+		return fmt.Errorf("agent %q not found", name)
+	}
+	return tx.Commit()
 }
 
 // DeleteOldMessages removes messages older than retentionDays and their
