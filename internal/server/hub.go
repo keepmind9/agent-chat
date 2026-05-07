@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"log/slog"
 	"sync"
 
 	"github.com/keepmind9/agent-chat/pkg/protocol"
@@ -12,14 +13,16 @@ type Hub struct {
 	mu           sync.RWMutex
 	agents       map[string]chan []byte
 	groupMembers map[string][]string
+	logger       *slog.Logger
 	stopCh       chan struct{}
 }
 
 // NewHub creates a new Hub instance.
-func NewHub() *Hub {
+func NewHub(logger *slog.Logger) *Hub {
 	return &Hub{
 		agents:       make(map[string]chan []byte),
 		groupMembers: make(map[string][]string),
+		logger:       logger.With("component", "hub"),
 		stopCh:       make(chan struct{}),
 	}
 }
@@ -82,7 +85,7 @@ func (h *Hub) PushToAgent(name string, msg *protocol.Message) {
 	select {
 	case ch <- data:
 	default:
-		// Channel full, drop the message.
+		h.logger.Warn("dropped message: agent channel full", "agent", name)
 	}
 }
 
@@ -114,10 +117,11 @@ func (h *Hub) PushStatusChange(agentName, status string) {
 
 	h.mu.RLock()
 	defer h.mu.RUnlock()
-	for _, ch := range h.agents {
+	for name, ch := range h.agents {
 		select {
 		case ch <- data:
 		default:
+			h.logger.Warn("dropped status update: agent channel full", "agent", name)
 		}
 	}
 }

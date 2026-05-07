@@ -20,7 +20,7 @@ func setupTestHandler(t *testing.T) *Handler {
 	require.NoError(t, err)
 	t.Cleanup(func() { s.Close() })
 
-	h := NewHub()
+	h := NewHub(slog.Default())
 	go h.Run()
 	t.Cleanup(func() { h.Stop() })
 

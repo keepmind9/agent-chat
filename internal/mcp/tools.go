@@ -6,9 +6,16 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	mcptool "github.com/mark3labs/mcp-go/mcp"
 )
+
+// apiClientTimeout is the maximum duration for a single HTTP request.
+var apiClientTimeout = 30 * time.Second
+
+// DefaultMessageLimit is the default number of messages returned by check_messages.
+const DefaultMessageLimit = 20
 
 // APIClient communicates with the agent-chat server API.
 type APIClient struct {
@@ -21,9 +28,11 @@ type APIClient struct {
 // NewAPIClient creates a new API client for the given server base URL and agent name.
 func NewAPIClient(baseURL, agentName string) *APIClient {
 	return &APIClient{
-		baseURL:    baseURL,
-		agentName:  agentName,
-		httpClient: &http.Client{},
+		baseURL:   baseURL,
+		agentName: agentName,
+		httpClient: &http.Client{
+			Timeout: apiClientTimeout,
+		},
 	}
 }
 
@@ -150,7 +159,7 @@ func BuildCheckMessagesTool() mcptool.Tool {
 		mcptool.WithDescription("Check unread messages from other agents. Call this when you see an [agent-chat] notification."),
 		mcptool.WithNumber("limit",
 			mcptool.Description("Maximum number of messages to return"),
-			mcptool.DefaultNumber(20),
+			mcptool.DefaultNumber(DefaultMessageLimit),
 		),
 	)
 }
@@ -274,7 +283,7 @@ func MakeSendGroupMessageHandler(client *APIClient) func(ctx context.Context, re
 // MakeCheckMessagesHandler creates a handler for the check_messages tool.
 func MakeCheckMessagesHandler(client *APIClient) func(ctx context.Context, req mcptool.CallToolRequest) (*mcptool.CallToolResult, error) {
 	return func(ctx context.Context, req mcptool.CallToolRequest) (*mcptool.CallToolResult, error) {
-		limit := req.GetInt("limit", 20)
+		limit := req.GetInt("limit", DefaultMessageLimit)
 		path := fmt.Sprintf("/api/messages?agent=%s&limit=%d", client.agentName, limit)
 
 		result, err := client.DoRequest(http.MethodGet, path, nil)

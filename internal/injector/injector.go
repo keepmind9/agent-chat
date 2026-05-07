@@ -13,7 +13,10 @@ import (
 	"github.com/keepmind9/agent-chat/pkg/protocol"
 )
 
-const summaryLen = 200
+const (
+	summaryLen    = 200
+	tmuxSendDelay = 100 * time.Millisecond
+)
 
 // truncateMsg returns a summary of msg.Content up to summaryLen runes,
 // with "..." appended when truncated.
@@ -132,7 +135,7 @@ func (inj *Injector) Inject(text string) error {
 	if err := exec.Command("tmux", "send-keys", "-t", inj.pane, text).Run(); err != nil {
 		return err
 	}
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(tmuxSendDelay)
 	return exec.Command("tmux", "send-keys", "-t", inj.pane, "Enter").Run()
 }
 

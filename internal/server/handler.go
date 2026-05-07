@@ -10,6 +10,9 @@ import (
 	"github.com/keepmind9/agent-chat/pkg/protocol"
 )
 
+// defaultRecentLimit is the default number of recent messages returned.
+const defaultRecentLimit = 50
+
 // Handler provides HTTP endpoints for the agent-chat system.
 type Handler struct {
 	store  *store.Store
@@ -163,9 +166,9 @@ func (h *Handler) HandleListGroups(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, groups)
 }
 
-// HandleRecentMessages returns the most recent 50 messages.
+// HandleRecentMessages returns the most recent messages.
 func (h *Handler) HandleRecentMessages(w http.ResponseWriter, r *http.Request) {
-	msgs, err := h.store.GetRecentMessages(50)
+	msgs, err := h.store.GetRecentMessages(defaultRecentLimit)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

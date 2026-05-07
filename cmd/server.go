@@ -98,7 +98,7 @@ func runServe() error {
 	}
 	defer s.Close()
 
-	hub := server.NewHub()
+	hub := server.NewHub(logger)
 	go hub.Run()
 
 	if retentionDays > 0 {
@@ -130,7 +130,9 @@ func runServe() error {
 		authMiddleware := func(c *gin.Context) {
 			if c.GetHeader("Authorization") != "Bearer "+apiKey {
 				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+				return
 			}
+			c.Next()
 		}
 		r.POST("/api/*", authMiddleware)
 		r.GET("/api/*", authMiddleware)

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"log/slog"
 	"testing"
 	"time"
 
@@ -9,7 +10,7 @@ import (
 )
 
 func TestHubRegisterUnregister(t *testing.T) {
-	h := NewHub()
+	h := NewHub(slog.Default())
 
 	ch := make(chan []byte, 8)
 	h.Register("agent-a", ch)
@@ -26,7 +27,7 @@ func TestHubRegisterUnregister(t *testing.T) {
 }
 
 func TestHubPushToAgent(t *testing.T) {
-	h := NewHub()
+	h := NewHub(slog.Default())
 
 	ch := make(chan []byte, 8)
 	h.Register("agent-a", ch)
@@ -52,7 +53,7 @@ func TestHubPushToAgent(t *testing.T) {
 }
 
 func TestHubPushToGroup(t *testing.T) {
-	h := NewHub()
+	h := NewHub(slog.Default())
 
 	chA := make(chan []byte, 8)
 	chB := make(chan []byte, 8)

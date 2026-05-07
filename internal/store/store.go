@@ -3,7 +3,9 @@ package store
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"strings"
 	"time"
@@ -213,9 +215,16 @@ func (s *Store) ListAgents() ([]*protocol.Agent, error) {
 	return agents, rows.Err()
 }
 
+// randomHex generates n random bytes and returns them as a hex string.
+func randomHex(n int) string {
+	b := make([]byte, n)
+	_, _ = rand.Read(b)
+	return hex.EncodeToString(b)
+}
+
 // SaveMessage persists a new message and returns its generated ID.
 func (s *Store) SaveMessage(from, to, group, content, inReplyTo string) (string, error) {
-	id := fmt.Sprintf("msg-%d", time.Now().UnixNano())
+	id := fmt.Sprintf("msg-%d-%s", time.Now().UnixMilli(), randomHex(3))
 	_, err := s.db.Exec(
 		"INSERT INTO messages (id, from_agent, to_agent, grp, content, in_reply_to, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
 		id, from, to, group, content, inReplyTo, time.Now().UTC(),
