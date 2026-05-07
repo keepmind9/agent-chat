@@ -202,6 +202,13 @@ func BuildUpdateStatusTool() mcptool.Tool {
 	)
 }
 
+// BuildDeregisterTool builds the MCP tool definition for deregistering an agent.
+func BuildDeregisterTool() mcptool.Tool {
+	return mcptool.NewTool("deregister",
+		mcptool.WithDescription("Remove the current agent from the communication platform. Call this when shutting down or leaving."),
+	)
+}
+
 // --- Tool Handlers ---
 
 // MakeRegisterHandler creates a handler for the register tool.
@@ -355,6 +362,21 @@ func MakeUpdateStatusHandler(client *APIClient) func(ctx context.Context, req mc
 		result, err := client.DoRequest(http.MethodPost, "/api/agents/status", body)
 		if err != nil {
 			return mcptool.NewToolResultError(fmt.Sprintf("update status failed: %v", err)), nil
+		}
+		data, _ := json.Marshal(result)
+		return mcptool.NewToolResultText(string(data)), nil
+	}
+}
+
+// MakeDeregisterHandler creates a handler for the deregister tool.
+func MakeDeregisterHandler(client *APIClient) func(ctx context.Context, req mcptool.CallToolRequest) (*mcptool.CallToolResult, error) {
+	return func(ctx context.Context, req mcptool.CallToolRequest) (*mcptool.CallToolResult, error) {
+		body := map[string]interface{}{
+			"agent_name": client.agentName,
+		}
+		result, err := client.DoRequest(http.MethodPost, "/api/deregister", body)
+		if err != nil {
+			return mcptool.NewToolResultError(fmt.Sprintf("deregister failed: %v", err)), nil
 		}
 		data, _ := json.Marshal(result)
 		return mcptool.NewToolResultText(string(data)), nil
