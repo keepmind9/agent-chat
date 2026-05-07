@@ -3,7 +3,7 @@ package mcp
 import (
 	"encoding/json"
 	"log/slog"
-	"math/rand"
+	"math/rand/v2"
 	"strings"
 	"sync"
 	"time"
@@ -143,7 +143,7 @@ func (c *WSClient) heartbeat(done chan struct{}) {
 // jitter adds randomization in [d/2, d] (i.e. -50% to 0%) to avoid thundering herd.
 func jitter(d time.Duration) time.Duration {
 	half := d / 2
-	return d - half + time.Duration(rand.Int63n(int64(half)+1))
+	return d - half + time.Duration(rand.Int64N(int64(half)+1))
 }
 
 // Stop shuts down the WebSocket client. Safe to call multiple times.
